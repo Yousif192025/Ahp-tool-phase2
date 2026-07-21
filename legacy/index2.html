@@ -1,0 +1,503 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Analytic Hierarchy Process (AHP) Tool - Enhanced</title>
+    <meta name="description" content="Enhanced AHP tool with sensitivity analysis and advanced features">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/chartist.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+
+    <script>
+      var global = window;
+      // Must remove query params to prevent interference with the auto-save/auto-load feature
+      if (window.location.search) {
+        window.location = window.location.pathname;
+      }
+    </script>
+    
+    <!-- النظام الأساسي -->
+    <script defer src="js/index.js"></script>
+    
+    <!-- تحميل النظام المحسن بشكل منفصل -->
+    <script type="module">
+      // تحميل الوحدات المحسنة
+      import('./js/modules/main.js').then(() => {
+        console.log('✅ SFacts Enhanced modules loaded');
+      }).catch(error => {
+        console.warn('⚠️ Enhanced modules not available:', error);
+      });
+    </script>
+    
+    <!-- النظام الأصلي -->
+    <script defer src="js/rolledup.js"></script>
+    <!-- في قسم <head> بعد rolledup.js -->
+     <script defer src="js/enhanced-integration.js"></script>
+  </head>
+  <body>
+
+    <div class="header-container">
+      <header class="wrapper">
+        <h1>Analytic Hierarchy Process (AHP) Tool - Enhanced</h1>
+        <div style="font-size: 14px; color: #666; margin-top: 5px;">
+          <span id="version-info">SFacts Enhanced 2.0</span>
+          <button id="toggle-enhanced" style="margin-left: 10px; padding: 2px 8px; font-size: 12px;">Advanced Features</button>
+        </div>
+      </header>
+    </div>
+
+    <div class="main wrapper">
+      <aside>
+        <h3>New to the AHP?</h3>
+        <p>Check out <a href="https://en.wikipedia.org/wiki/Analytic_hierarchy_process" target="_blank">Wikipedia's article on it</a>.</p>
+        <h3>Data Management</h3>
+        <p><button id="datamgmt_reset">Reset</button> - <button id="datamgmt_export">Export</button> - <button id="datamgmt_import">Import</button></p>
+        <p><textarea id="datamgmt"></textarea></p>
+        
+        <!-- Advanced Features Panel -->
+        <div id="enhanced-panel" style="display: none; margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+          <h4>Advanced Analysis</h4>
+          <button id="btn-sensitivity" style="width: 100%; margin: 2px 0;">Sensitivity Analysis</button>
+          <button id="btn-validate" style="width: 100%; margin: 2px 0;">Validate Inputs</button>
+          <button id="btn-export-json" style="width: 100%; margin: 2px 0;">Export JSON</button>
+          <button id="btn-export-csv" style="width: 100%; margin: 2px 0;">Export CSV</button>
+        </div>
+      </aside>
+
+      <form id="ahpdata" name="ahpdata">
+        <!-- جميع الأقسام الأصلية تبقى كما هي -->
+        <section>
+          <h1>Your Goal</h1>
+          <textarea id="goal"></textarea>
+        </section>
+        <section id="criteria_inputs">
+          <h1>Your Criteria</h1>
+          <p>You can leave some blank, but you cannot have more than 8.</p>
+          <input type="text" id="criteria0" name="criteria0" />
+          <input type="text" id="criteria1" name="criteria1" />
+          <input type="text" id="criteria2" name="criteria2" />
+          <input type="text" id="criteria3" name="criteria3" />
+          <input type="text" id="criteria4" name="criteria4" />
+          <input type="text" id="criteria5" name="criteria5" />
+          <input type="text" id="criteria6" name="criteria6" />
+          <input type="text" id="criteria7" name="criteria7" />
+        </section>
+        <section id="items_inputs">
+          <h1>Your Options (Alternatives)</h1>
+          <p>You can leave some blank, but you cannot have more than 8.</p>
+          <input type="text" id="item0" name="item0" />
+          <input type="text" id="item1" name="item1" />
+          <input type="text" id="item2" name="item2" />
+          <input type="text" id="item3" name="item3" />
+          <input type="text" id="item4" name="item4" />
+          <input type="text" id="item5" name="item5" />
+          <input type="text" id="item6" name="item6" />
+          <input type="text" id="item7" name="item7" />
+        </section>
+
+        <section id="pairwise_criteria" class="pairwise_criteria pairwisetable">
+          <h1>Pairwise Comparisons For Your Criteria With Respect To Your Goal</h1>
+          <aside id="pairwise_criteria_sentence"></aside>
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th class="crit0 criteria0" scope="col"></th>
+                <th class="crit1 criteria1" scope="col"></th>
+                <th class="crit2 criteria2" scope="col"></th>
+                <th class="crit3 criteria3" scope="col"></th>
+                <th class="crit4 criteria4" scope="col"></th>
+                <th class="crit5 criteria5" scope="col"></th>
+                <th class="crit6 criteria6" scope="col"></th>
+                <th class="crit7 criteria7" scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="crit0">
+                <th class="criteria0" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria0v0" name="criteria0v0" value="1" readonly /></td>
+                <td class="crit1"><input type="text" id="criteria0v1" name="criteria0v1" /></td>
+                <td class="crit2"><input type="text" id="criteria0v2" name="criteria0v2" /></td>
+                <td class="crit3"><input type="text" id="criteria0v3" name="criteria0v3" /></td>
+                <td class="crit4"><input type="text" id="criteria0v4" name="criteria0v4" /></td>
+                <td class="crit5"><input type="text" id="criteria0v5" name="criteria0v5" /></td>
+                <td class="crit6"><input type="text" id="criteria0v6" name="criteria0v6" /></td>
+                <td class="crit7"><input type="text" id="criteria0v7" name="criteria0v7" /></td>
+              </tr>
+              <tr class="crit1">
+                <th class="criteria1" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria1v0" name="criteria1v0" /></td>
+                <td class="crit1"><input type="text" id="criteria1v1" name="criteria1v1" value="1" readonly /></td>
+                <td class="crit2"><input type="text" id="criteria1v2" name="criteria1v2" /></td>
+                <td class="crit3"><input type="text" id="criteria1v3" name="criteria1v3" /></td>
+                <td class="crit4"><input type="text" id="criteria1v4" name="criteria1v4" /></td>
+                <td class="crit5"><input type="text" id="criteria1v5" name="criteria1v5" /></td>
+                <td class="crit6"><input type="text" id="criteria1v6" name="criteria1v6" /></td>
+                <td class="crit7"><input type="text" id="criteria1v7" name="criteria1v7" /></td>
+              </tr>
+              <tr class="crit2">
+                <th class="criteria2" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria2v0" name="criteria2v0" /></td>
+                <td class="crit1"><input type="text" id="criteria2v1" name="criteria2v1" /></td>
+                <td class="crit2"><input type="text" id="criteria2v2" name="criteria2v2" value="1" readonly /></td>
+                <td class="crit3"><input type="text" id="criteria2v3" name="criteria2v3" /></td>
+                <td class="crit4"><input type="text" id="criteria2v4" name="criteria2v4" /></td>
+                <td class="crit5"><input type="text" id="criteria2v5" name="criteria2v5" /></td>
+                <td class="crit6"><input type="text" id="criteria2v6" name="criteria2v6" /></td>
+                <td class="crit7"><input type="text" id="criteria2v7" name="criteria2v7" /></td>
+              </tr>
+              <tr class="crit3">
+                <th class="criteria3" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria3v0" name="criteria3v0" /></td>
+                <td class="crit1"><input type="text" id="criteria3v1" name="criteria3v1" /></td>
+                <td class="crit2"><input type="text" id="criteria3v2" name="criteria3v2" /></td>
+                <td class="crit3"><input type="text" id="criteria3v3" name="criteria3v3" value="1" readonly /></td>
+                <td class="crit4"><input type="text" id="criteria3v4" name="criteria3v4" /></td>
+                <td class="crit5"><input type="text" id="criteria3v5" name="criteria3v5" /></td>
+                <td class="crit6"><input type="text" id="criteria3v6" name="criteria3v6" /></td>
+                <td class="crit7"><input type="text" id="criteria3v7" name="criteria3v7" /></td>
+              </tr>
+              <tr class="crit4">
+                <th class="criteria4" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria4v0" name="criteria4v0" /></td>
+                <td class="crit1"><input type="text" id="criteria4v1" name="criteria4v1" /></td>
+                <td class="crit2"><input type="text" id="criteria4v2" name="criteria4v2" /></td>
+                <td class="crit3"><input type="text" id="criteria4v3" name="criteria4v3" /></td>
+                <td class="crit4"><input type="text" id="criteria4v4" name="criteria4v4" value="1" readonly /></td>
+                <td class="crit5"><input type="text" id="criteria4v5" name="criteria4v5" /></td>
+                <td class="crit6"><input type="text" id="criteria4v6" name="criteria4v6" /></td>
+                <td class="crit7"><input type="text" id="criteria4v7" name="criteria4v7" /></td>
+              </tr>
+              <tr class="crit5">
+                <th class="criteria5" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria5v0" name="criteria5v0" /></td>
+                <td class="crit1"><input type="text" id="criteria5v1" name="criteria5v1" /></td>
+                <td class="crit2"><input type="text" id="criteria5v2" name="criteria5v2" /></td>
+                <td class="crit3"><input type="text" id="criteria5v3" name="criteria5v3" /></td>
+                <td class="crit4"><input type="text" id="criteria5v4" name="criteria5v4" /></td>
+                <td class="crit5"><input type="text" id="criteria5v5" name="criteria5v5" value="1" readonly /></td>
+                <td class="crit6"><input type="text" id="criteria5v6" name="criteria5v6" /></td>
+                <td class="crit7"><input type="text" id="criteria5v7" name="criteria5v7" /></td>
+              </tr>
+              <tr class="crit6">
+                <th class="criteria6" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria6v0" name="criteria6v0" /></td>
+                <td class="crit1"><input type="text" id="criteria6v1" name="criteria6v1" /></td>
+                <td class="crit2"><input type="text" id="criteria6v2" name="criteria6v2" /></td>
+                <td class="crit3"><input type="text" id="criteria6v3" name="criteria6v3" /></td>
+                <td class="crit4"><input type="text" id="criteria6v4" name="criteria6v4" /></td>
+                <td class="crit5"><input type="text" id="criteria6v5" name="criteria6v5" /></td>
+                <td class="crit6"><input type="text" id="criteria6v6" name="criteria6v6" value="1" readonly /></td>
+                <td class="crit7"><input type="text" id="criteria6v7" name="criteria6v7" /></td>
+              </tr>
+              <tr class="crit7">
+                <th class="criteria7" scope="row"></th>
+                <td class="crit0"><input type="text" id="criteria7v0" name="criteria7v0" /></td>
+                <td class="crit1"><input type="text" id="criteria7v1" name="criteria7v1" /></td>
+                <td class="crit2"><input type="text" id="criteria7v2" name="criteria7v2" /></td>
+                <td class="crit3"><input type="text" id="criteria7v3" name="criteria7v3" /></td>
+                <td class="crit4"><input type="text" id="criteria7v4" name="criteria7v4" /></td>
+                <td class="crit5"><input type="text" id="criteria7v5" name="criteria7v5" /></td>
+                <td class="crit6"><input type="text" id="criteria7v6" name="criteria7v6" /></td>
+                <td class="crit7"><input type="text" id="criteria7v7" name="criteria7v7" value="1" readonly /></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="pairwise_items" class="pairwise_items pairwisetable">
+          <h1>Pairwise Comparisons For Your Options (Alternatives) With Respect To Each Criterion</h1>
+
+          <!-- جميع الأقسام الفرعية تبقى كما هي -->
+          <section id="c0_items" class="c0_items">
+            <h2 class="criteria0"></h2>
+            <aside id="criteria0_sentence"></aside>
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th class="item0" scope="col"></th>
+                  <th class="item1" scope="col"></th>
+                  <th class="item2" scope="col"></th>
+                  <th class="item3" scope="col"></th>
+                  <th class="item4" scope="col"></th>
+                  <th class="item5" scope="col"></th>
+                  <th class="item6" scope="col"></th>
+                  <th class="item7" scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="item0">
+                  <th class="item0" scope="row"></th>
+                  <td class="item0"><input type="text" id="c0_item0v0" name="c0_item0v0" value="1" readonly /></td>
+                  <td class="item1"><input type="text" id="c0_item0v1" name="c0_item0v1" /></td>
+                  <td class="item2"><input type="text" id="c0_item0v2" name="c0_item0v2" /></td>
+                  <td class="item3"><input type="text" id="c0_item0v3" name="c0_item0v3" /></td>
+                  <td class="item4"><input type="text" id="c0_item0v4" name="c0_item0v4" /></td>
+                  <td class="item5"><input type="text" id="c0_item0v5" name="c0_item0v5" /></td>
+                  <td class="item6"><input type="text" id="c0_item0v6" name="c0_item0v6" /></td>
+                  <td class="item7"><input type="text" id="c0_item0v7" name="c0_item0v7" /></td>
+                </tr>
+                <!-- باقي الصفوف تبقى كما هي -->
+              </tbody>
+            </table>
+          </section>
+          <!-- باقي الأقسام الفرعية c1_items إلى c7_items تبقى كما هي -->
+
+        </section> <!-- #pairwise_items -->
+
+        <section>
+          <button id="calcbtn">Calculate!</button>
+          <button type="button" id="btn-advanced-calc" style="margin-left: 10px; display: none;">Advanced Calculate</button>
+        </section>
+      </form>
+
+      <section id="results" class="results">
+        <h1>Your Results</h1>
+        
+        <!-- Enhanced Results Notification -->
+        <div id="enhanced-notice" style="display: none; background: #e7f3ff; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+          <strong>Enhanced Results Available!</strong> Use advanced features for sensitivity analysis and validation.
+        </div>
+        
+        <h2>Weighted Criteria</h2>
+        <div class="ct-chart ct-octave" id="criteria"></div>
+        <h2>Scored Options (Alternatives)</h2>
+        <div class="ct-chart ct-double-octave" id="rankings"></div>
+        
+        <!-- Enhanced Results Section -->
+        <div id="enhanced-results" style="display: none; margin-top: 30px; padding: 15px; background: #f9f9f9; border-radius: 5px;">
+          <h2>Enhanced Analysis</h2>
+          <div id="sensitivity-results"></div>
+          <div id="validation-results"></div>
+          <div id="export-results"></div>
+        </div>
+      </section>
+    </div> <!-- #main -->
+
+    <div class="footer-container">
+      <footer class="wrapper">
+        <h3>Want to modify this? Feel free to <a href="https://github.com/ComcastSamples/ahp-tool">fork it</a> and send a Pull Request!</h3>
+        <p>Enhanced with SFacts 2.0 - Advanced AHP Analysis</p>
+      </footer>
+    </div>
+
+    <!-- تهيئة الميزات المحسنة -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // تهيئة واجهة المستخدم المحسنة
+        initializeEnhancedUI();
+        
+        function initializeEnhancedUI() {
+          const toggleBtn = document.getElementById('toggle-enhanced');
+          const enhancedPanel = document.getElementById('enhanced-panel');
+          const advancedCalcBtn = document.getElementById('btn-advanced-calc');
+          
+          if (toggleBtn && enhancedPanel) {
+            toggleBtn.addEventListener('click', function() {
+              enhancedPanel.style.display = enhancedPanel.style.display === 'none' ? 'block' : 'none';
+            });
+          }
+          
+          // إظهار زر الحساب المتقدم إذا كان النظام المحسن متاحاً
+          setTimeout(() => {
+            if (window.SFactsApp && advancedCalcBtn) {
+              advancedCalcBtn.style.display = 'inline-block';
+              advancedCalcBtn.addEventListener('click', performAdvancedCalculation);
+            }
+          }, 1000);
+          
+          // إضافة مستمعين للأزرار المتقدمة
+          setupEnhancedButtons();
+        }
+        
+        function setupEnhancedButtons() {
+          // تحليل الحساسية
+          const sensitivityBtn = document.getElementById('btn-sensitivity');
+          if (sensitivityBtn) {
+            sensitivityBtn.addEventListener('click', performSensitivityAnalysis);
+          }
+          
+          // التحقق من الصحة
+          const validateBtn = document.getElementById('btn-validate');
+          if (validateBtn) {
+            validateBtn.addEventListener('click', performValidation);
+          }
+          
+          // التصدير
+          const exportJsonBtn = document.getElementById('btn-export-json');
+          if (exportJsonBtn) {
+            exportJsonBtn.addEventListener('click', exportToJSON);
+          }
+          
+          const exportCsvBtn = document.getElementById('btn-export-csv');
+          if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', exportToCSV);
+          }
+        }
+        
+        function performAdvancedCalculation() {
+          if (!window.SFactsApp) {
+            alert('Enhanced features not available');
+            return;
+          }
+          
+          try {
+            const formData = collectFormData();
+            if (!formData) {
+              alert('Please fill in all required fields');
+              return;
+            }
+            
+            const app = new window.SFactsApp();
+            const results = app.runCalculation(
+              formData.items,
+              formData.criteria,
+              formData.criteriaItemRank,
+              formData.criteriaRank
+            );
+            
+            if (results.success) {
+              showEnhancedResults(results);
+            } else {
+              alert('Calculation error: ' + results.error);
+            }
+          } catch (error) {
+            console.error('Advanced calculation error:', error);
+            alert('Error in advanced calculation');
+          }
+        }
+        
+        function performSensitivityAnalysis() {
+          if (!window.sfactsEnhanced || !window.sfactsEnhanced.getCurrentResults) {
+            alert('Please perform calculation first');
+            return;
+          }
+          
+          const results = window.sfactsEnhanced.getCurrentResults();
+          if (!results) {
+            alert('No results available for analysis');
+            return;
+          }
+          
+          const sensitivity = window.sfactsEnhanced.sensitivityAnalyzer.analyzeSensitivity(results);
+          displaySensitivityResults(sensitivity);
+        }
+        
+        function performValidation() {
+          const formData = collectFormData();
+          if (!formData) return;
+          
+          if (window.sfactsEnhanced && window.sfactsEnhanced.dataValidator) {
+            const validation = window.sfactsEnhanced.dataValidator.validateAllInputs(
+              formData.items,
+              formData.criteria,
+              formData.criteriaItemRank,
+              formData.criteriaRank
+            );
+            displayValidationResults(validation);
+          }
+        }
+        
+        function exportToJSON() {
+          if (window.sfactsEnhanced && window.sfactsEnhanced.exportResults) {
+            const jsonData = window.sfactsEnhanced.exportResults('json');
+            downloadFile(jsonData, 'ahp-results.json', 'application/json');
+          }
+        }
+        
+        function exportToCSV() {
+          if (window.sfactsEnhanced && window.sfactsEnhanced.exportResults) {
+            const csvData = window.sfactsEnhanced.exportResults('csv');
+            downloadFile(csvData, 'ahp-results.csv', 'text/csv');
+          }
+        }
+        
+        function collectFormData() {
+          // جمع البيانات من النموذج (سيتم تنفيذها بالكامل لاحقاً)
+          try {
+            const items = [];
+            const criteria = [];
+            
+            // جمع العناصر
+            for (let i = 0; i < 8; i++) {
+              const item = document.getElementById('item' + i)?.value.trim();
+              if (item) items.push(item);
+            }
+            
+            // جمع المعايير
+            for (let i = 0; i < 8; i++) {
+              const criterion = document.getElementById('criteria' + i)?.value.trim();
+              if (criterion) criteria.push(criterion);
+            }
+            
+            if (items.length === 0 || criteria.length === 0) {
+              return null;
+            }
+            
+            return {
+              items: items,
+              criteria: criteria,
+              criteriaItemRank: [], // سيتم جمعه لاحقاً
+              criteriaRank: [] // سيتم جمعه لاحقاً
+            };
+          } catch (error) {
+            console.error('Error collecting form data:', error);
+            return null;
+          }
+        }
+        
+        function showEnhancedResults(results) {
+          document.getElementById('enhanced-notice').style.display = 'block';
+          document.getElementById('enhanced-results').style.display = 'block';
+          
+          // تخزين النتائج للاستخدام لاحقاً
+          if (!window.sfactsEnhanced) {
+            window.sfactsEnhanced = {};
+          }
+          window.sfactsEnhanced.currentResults = results.data;
+        }
+        
+        function displaySensitivityResults(sensitivity) {
+          const container = document.getElementById('sensitivity-results');
+          if (!container) return;
+          
+          let html = '<h3>Sensitivity Analysis</h3>';
+          if (sensitivity.mostSensitive) {
+            html += `<p>Most sensitive criterion: <strong>${sensitivity.mostSensitive.criterion}</strong></p>`;
+          }
+          container.innerHTML = html;
+        }
+        
+        function displayValidationResults(validation) {
+          const container = document.getElementById('validation-results');
+          if (!container) return;
+          
+          let html = '<h3>Input Validation</h3>';
+          html += `<p>Status: <strong>${validation.isValid ? 'Valid' : 'Invalid'}</strong></p>`;
+          
+          if (!validation.isValid && validation.errors.length > 0) {
+            html += '<ul>';
+            validation.errors.forEach(error => {
+              html += `<li style="color: red;">${error}</li>`;
+            });
+            html += '</ul>';
+          }
+          
+          container.innerHTML = html;
+        }
+        
+        function downloadFile(content, filename, contentType) {
+          const blob = new Blob([content], { type: contentType });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        }
+      });
+    </script>
+  </body>
+</html>
