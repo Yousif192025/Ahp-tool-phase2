@@ -69,21 +69,33 @@ See `docs/diagrams/module-dependency-diagram.svg` for the concrete
 before/after comparison: the current single 3,700-line inline script in
 `index.html` versus the target layered file structure.
 
-## 7. What changed in Phase 2, and what didn't
+## 7. What changed in Phase 2 and Phase 3, and what didn't
 
-**Changed:** folder organization only. All code with zero references from
-`index.html` was moved into `legacy/` (see `legacy/README.md` for the
-itemized list and verification). New empty module folders and
-documentation were added for the Phase 3 target structure. A metadata
-module (`js/metadata/research-metadata.js`) was added as static data, not
-yet wired into the UI.
+**Phase 2 (organization only):** all code with zero references from
+`index.html` was moved into `legacy/` (see `legacy/README.md`). New empty
+module folders and documentation were added. A metadata module
+(`js/metadata/research-metadata.js`) was added as static data, not yet
+wired into the UI. `index.html`'s executable content was untouched.
 
-**Not changed:** `index.html` itself — its inline script, DOM structure,
-event wiring, and all calculation logic are byte-for-byte untouched. No
-numerical output of the application can have changed, because no code
-path the application executes was modified. This will be verified
-concretely at the start of Phase 3 via golden test cases (see
-`test/golden-cases/`, populated in Phase 3).
+**Phase 3 (engine extraction):** four functions —
+`calculatePriorityVector`, `calculateConsistencyRatio`,
+`calculateOverallConsistency`, `calculateEnhancedAHP` — were moved out of
+`index.html`'s inline script into `js/core/ahp-engine.js` and
+`js/frameworks/amseshi/amseshi-framework.js`, with the algorithm itself
+unchanged (verbatim copy). `index.html` now loads them via one
+`<script type="module">` in `<head>` that exposes them on `window`, so
+every existing call site elsewhere in the file needed zero changes. This
+was verified against five golden test cases with strict floating-point
+equality — see `docs/reproducibility/phase3-verification-report.md`.
+
+**Not changed:** the DOM structure, event wiring, matrix-building
+functions (`createCriteriaMatrix`, `createAlternativeMatrices` — still
+inline, still DOM-reading; their extraction is a Phase 4 concern since
+that's a UI/DOM separation, not an engine separation), the display
+functions, the charts, and the export logic. The `metadata.algorithm`
+label (a known Phase 1 naming inaccuracy) was also deliberately left
+unchanged pending separate approval, since correcting it would alter
+returned data shape, not just internal organization.
 
 ## 8. Reproducibility statement (for methodology chapter)
 

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "case-1-single-criterion",
+    "criteriaCR": 0,
+    "overallCR": 0,
+    "topAlternative": "Option A"
+  },
+  {
+    "name": "case-2-small-consistent",
+    "criteriaCR": 0.02139505031009471,
+    "overallCR": 0.010697525155047355,
+    "topAlternative": "A"
+  },
+  {
+    "name": "case-3-inconsistent",
+    "criteriaCR": 1.7777777777777772,
+    "overallCR": 0.8888888888888886,
+    "topAlternative": "P"
+  },
+  {
+    "name": "case-4-typical-real-world",
+    "criteriaCR": 0.00921939625984292,
+    "overallCR": 0.006263166943179086,
+    "topAlternative": "Vendor 1"
+  },
+  {
+    "name": "case-5-max-size-8x8",
+    "criteriaCR": 0.19504997551053607,
+    "overallCR": 0.1733044985604098,
+    "topAlternative": "Alternative 1"
+  }
+]

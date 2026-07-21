@@ -24,6 +24,24 @@
         window.runCalculation = null;
         window.calculateFromForm = null;
     </script>
+
+    <!--
+        Phase 3 refactor: the AHP calculation engine and the AMSESHI
+        assessment orchestration logic now live in js/core/ahp-engine.js
+        and js/frameworks/amseshi/amseshi-framework.js respectively
+        (same algorithm, verified byte-for-byte against golden test
+        cases in test/golden-cases/ — see docs/reproducibility/).
+        They are exposed here as globals so every existing call site
+        below continues to work completely unchanged.
+    -->
+    <script type="module">
+        import { calculatePriorityVector, calculateConsistencyRatio, calculateOverallConsistency } from './js/core/ahp-engine.js';
+        import { calculateEnhancedAHP } from './js/frameworks/amseshi/amseshi-framework.js';
+        window.calculatePriorityVector = calculatePriorityVector;
+        window.calculateConsistencyRatio = calculateConsistencyRatio;
+        window.calculateOverallConsistency = calculateOverallConsistency;
+        window.calculateEnhancedAHP = calculateEnhancedAHP;
+    </script>
     
     <style>
         .enhanced-features {
@@ -1809,121 +1827,13 @@
         // ============================================
         // ENHANCED AHP ALGORITHM
         // ============================================
-        
-        function calculateEnhancedAHP(items, criteria, alternativeMatrices, criteriaMatrix) {
-            console.log('🔢 Performing Enhanced AHP calculation...');
-            
-            const criteriaResult = calculatePriorityVector(criteriaMatrix);
-            const criteriaWeights = criteriaResult.weights;
-            const criteriaCR = criteriaResult.consistencyRatio;
-            
-            const alternativePriorities = [];
-            const alternativeCRs = [];
-            
-            for (let c = 0; c < criteria.length; c++) {
-                const altResult = calculatePriorityVector(alternativeMatrices[c]);
-                alternativePriorities.push(altResult.weights);
-                alternativeCRs.push(altResult.consistencyRatio);
-            }
-            
-            const finalScores = [];
-            for (let i = 0; i < items.length; i++) {
-                let score = 0;
-                for (let c = 0; c < criteria.length; c++) {
-                    score += criteriaWeights[c] * alternativePriorities[c][i];
-                }
-                finalScores.push(score);
-            }
-            
-            const totalScore = finalScores.reduce((sum, s) => sum + s, 0);
-            const normalizedScores = finalScores.map(s => s / totalScore);
-            
-            const overallCR = calculateOverallConsistency(criteriaCR, alternativeCRs, criteriaWeights);
-            
-            return {
-                criteria: {
-                    labels: criteria,
-                    weights: criteriaWeights,
-                    normalizedWeights: criteriaWeights.map(w => w / criteriaWeights.reduce((a, b) => a + b, 0)),
-                    consistencyRatio: criteriaCR
-                },
-                alternatives: {
-                    labels: items,
-                    scores: normalizedScores,
-                    rawScores: finalScores,
-                    prioritiesByCriterion: alternativePriorities
-                },
-                consistency: {
-                    criteriaCR: criteriaCR,
-                    alternativeCRs: alternativeCRs,
-                    overallCR: overallCR
-                },
-                metadata: {
-                    calculationMethod: 'enhanced-ahp',
-                    timestamp: new Date().toISOString(),
-                    algorithm: 'Eigenvector Method with Consistency Check',
-                    sensitivity: 'available'
-                }
-            };
-        }
-        
-        function calculatePriorityVector(matrix) {
-            const n = matrix.length;
-            
-            const geometricMeans = [];
-            for (let i = 0; i < n; i++) {
-                let product = 1;
-                for (let j = 0; j < n; j++) {
-                    product *= matrix[i][j];
-                }
-                geometricMeans.push(Math.pow(product, 1 / n));
-            }
-            
-            const sumGM = geometricMeans.reduce((s, gm) => s + gm, 0);
-            const priorityVector = geometricMeans.map(gm => gm / sumGM);
-            
-            const consistency = calculateConsistencyRatio(matrix, priorityVector);
-            
-            return {
-                weights: priorityVector,
-                consistencyRatio: consistency
-            };
-        }
-        
-        function calculateConsistencyRatio(matrix, weights) {
-            const n = matrix.length;
-            if (n <= 1) return 0;
-            
-            let lambdaMax = 0;
-            for (let i = 0; i < n; i++) {
-                let rowSum = 0;
-                for (let j = 0; j < n; j++) {
-                    rowSum += matrix[i][j] * weights[j];
-                }
-                lambdaMax += rowSum / weights[i];
-            }
-            lambdaMax /= n;
-            
-            const CI = (lambdaMax - n) / (n - 1);
-            
-            const RI = [0, 0, 0.58, 0.90, 1.12, 1.24, 1.32, 1.41, 1.45, 1.49];
-            
-            const CR = CI / (RI[n] || 1.49);
-            
-            return Math.max(0, CR);
-        }
-        
-        function calculateOverallConsistency(criteriaCR, alternativeCRs, criteriaWeights) {
-            if (alternativeCRs.length === 0) return criteriaCR;
-            
-            let weightedSum = criteriaCR;
-            for (let i = 0; i < alternativeCRs.length; i++) {
-                weightedSum += alternativeCRs[i] * (criteriaWeights[i] || 0);
-            }
-            
-            const totalWeight = 1 + criteriaWeights.reduce((a, b) => a + b, 0);
-            return weightedSum / totalWeight;
-        }
+        // calculateEnhancedAHP, calculatePriorityVector,
+        // calculateConsistencyRatio, and calculateOverallConsistency were
+        // extracted in Phase 3 to js/core/ahp-engine.js and
+        // js/frameworks/amseshi/amseshi-framework.js (same algorithm,
+        // verified against golden test cases — see docs/reproducibility/).
+        // They are loaded as a module in <head> and exposed on `window`,
+        // so every call site below is unchanged.
         
         // ============================================
         // RESULTS DISPLAY FUNCTIONS

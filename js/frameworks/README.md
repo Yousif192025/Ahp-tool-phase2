@@ -49,6 +49,13 @@ would mean adding a new folder here without touching `js/core/` at all.
 
 ## Status
 
-`amseshi/` is currently empty — its contents are extracted from the live
-`index.html` logic in **Phase 3**, preserving the exact current numerical
-behavior (verified against golden test cases; see `test/golden-cases/`).
+**Populated in Phase 3.** `amseshi/amseshi-framework.js` exports
+`calculateEnhancedAHP` (kept under its original name for backward
+compatibility, plus a `runAssessment` alias), extracted verbatim from the
+live `index.html` logic, preserving the exact numerical behavior —
+verified against golden test cases; see `test/golden-cases/` and
+`docs/reproducibility/phase3-verification-report.md`.
+
+A future framework would be added as a sibling folder here, e.g.
+`js/frameworks/future-framework-a/`, importing from `js/core/` the same
+way `amseshi/` does.

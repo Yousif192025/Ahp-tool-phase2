@@ -1,0 +1,126 @@
+{
+  "name": "case-3-inconsistent",
+  "description": "3 criteria with a deliberately inconsistent (circular) comparison matrix",
+  "input": {
+    "criteria": [
+      "X",
+      "Y",
+      "Z"
+    ],
+    "items": [
+      "P",
+      "Q"
+    ],
+    "criteriaMatrix": [
+      [
+        1,
+        5,
+        0.2
+      ],
+      [
+        0.2,
+        1,
+        5
+      ],
+      [
+        5,
+        0.2,
+        1
+      ]
+    ],
+    "alternativeMatrices": [
+      [
+        [
+          1,
+          2
+        ],
+        [
+          0.5,
+          1
+        ]
+      ],
+      [
+        [
+          1,
+          3
+        ],
+        [
+          0.3333333333333333,
+          1
+        ]
+      ],
+      [
+        [
+          1,
+          0.5
+        ],
+        [
+          2,
+          1
+        ]
+      ]
+    ]
+  },
+  "output": {
+    "criteria": {
+      "labels": [
+        "X",
+        "Y",
+        "Z"
+      ],
+      "weights": [
+        0.3333333333333333,
+        0.3333333333333333,
+        0.3333333333333333
+      ],
+      "normalizedWeights": [
+        0.3333333333333333,
+        0.3333333333333333,
+        0.3333333333333333
+      ],
+      "consistencyRatio": 1.7777777777777772
+    },
+    "alternatives": {
+      "labels": [
+        "P",
+        "Q"
+      ],
+      "scores": [
+        0.5833333333333334,
+        0.4166666666666667
+      ],
+      "rawScores": [
+        0.5833333333333333,
+        0.41666666666666663
+      ],
+      "prioritiesByCriterion": [
+        [
+          0.6666666666666666,
+          0.3333333333333333
+        ],
+        [
+          0.75,
+          0.25
+        ],
+        [
+          0.3333333333333333,
+          0.6666666666666666
+        ]
+      ]
+    },
+    "consistency": {
+      "criteriaCR": 1.7777777777777772,
+      "alternativeCRs": [
+        0,
+        0,
+        0
+      ],
+      "overallCR": 0.8888888888888886
+    },
+    "metadata": {
+      "calculationMethod": "enhanced-ahp",
+      "algorithm": "Eigenvector Method with Consistency Check",
+      "sensitivity": "available"
+    }
+  }
+}

@@ -18,16 +18,18 @@ framework later, unchanged.
 
 ## Status
 
-Empty as of Phase 2. **Phase 3** will extract the following functions
-verbatim (same algorithm, same numeric behavior) from the live
-`index.html`, verified against golden test cases first:
+**Populated in Phase 3.** Contains `ahp-engine.js`, exporting:
 
 - `calculatePriorityVector(matrix)`
 - `calculateConsistencyRatio(matrix, weights)`
 - `calculateOverallConsistency(criteriaCR, alternativeCRs, criteriaWeights)`
 
-The higher-level orchestration currently named `calculateEnhancedAHP(...)`
-in `index.html` will **not** live here — it belongs to the AMSESHI
-framework (`js/frameworks/amseshi/`), since it encodes AMSESHI's specific
-process (criteria → alternatives → weighted final score), not a generic
-AHP primitive.
+Extracted verbatim from `index.html`, verified byte-for-byte identical
+against five golden test cases — see
+`docs/reproducibility/phase3-verification-report.md`.
+
+The higher-level orchestration (`calculateEnhancedAHP(...)`) does **not**
+live here — it belongs to the AMSESHI framework
+(`js/frameworks/amseshi/amseshi-framework.js`), since it encodes AMSESHI's
+specific process (criteria → alternatives → weighted final score), not a
+generic AHP primitive.

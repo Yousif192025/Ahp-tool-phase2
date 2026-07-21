@@ -1,0 +1,76 @@
+{
+  "name": "case-1-single-criterion",
+  "description": "Edge case: 1 criterion, 2 alternatives",
+  "input": {
+    "criteria": [
+      "Cost"
+    ],
+    "items": [
+      "Option A",
+      "Option B"
+    ],
+    "criteriaMatrix": [
+      [
+        1
+      ]
+    ],
+    "alternativeMatrices": [
+      [
+        [
+          1,
+          3
+        ],
+        [
+          0.3333333333333333,
+          1
+        ]
+      ]
+    ]
+  },
+  "output": {
+    "criteria": {
+      "labels": [
+        "Cost"
+      ],
+      "weights": [
+        1
+      ],
+      "normalizedWeights": [
+        1
+      ],
+      "consistencyRatio": 0
+    },
+    "alternatives": {
+      "labels": [
+        "Option A",
+        "Option B"
+      ],
+      "scores": [
+        0.75,
+        0.25
+      ],
+      "rawScores": [
+        0.75,
+        0.25
+      ],
+      "prioritiesByCriterion": [
+        [
+          0.75,
+          0.25
+        ]
+      ]
+    },
+    "consistency": {
+      "criteriaCR": 0,
+      "alternativeCRs": [
+        0
+      ],
+      "overallCR": 0
+    },
+    "metadata": {
+      "calculationMethod": "enhanced-ahp",
+      "algorithm": "Eigenvector Method with Consistency Check",
+      "sensitivity": "available"
+    }
+  }
+}
