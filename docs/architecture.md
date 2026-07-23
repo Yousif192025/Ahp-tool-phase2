@@ -80,6 +80,24 @@ finalized (no more placeholders). `js/core/ahp-engine.js` and
 documentation header comment — no logic changed. See
 `js/README-phase4.md` for the full folder-by-folder rationale.
 
+## 6.6 ARIM separation (research decision, 2026-07-23)
+
+Institutional readiness is explicitly **not** derived from AHP priority
+weights/scores directly — see `docs/research-decisions/arim-separation.md`
+for the full rationale. The pipeline is:
+
+```
+Decision Analysis (AHP) -> Priority Analysis -> AMSESHI Interpretation
+Model (ARIM, not yet defined) -> Institutional Readiness Assessment
+```
+
+`js/frameworks/amseshi/interpretation.js` implements the well-defined
+part (consistency confidence from CR) in full, and exposes
+`deriveInstitutionalReadiness()` as a documented, currently-throwing
+extension point for ARIM once its methodology is validated. No change
+to `js/core/ahp-engine.js` or `amseshi-framework.js` is required when
+ARIM is eventually implemented.
+
 ## 7. What changed in Phase 2 and Phase 3, and what didn't
 
 **Phase 2 (organization only):** all code with zero references from

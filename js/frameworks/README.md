@@ -60,10 +60,34 @@ A future framework would be added as a sibling folder here, e.g.
 `js/frameworks/future-framework-a/`, importing from `js/core/` the same
 way `amseshi/` does.
 
-**Phase 4.1 addition:** three foundation stubs were added alongside
-`amseshi-framework.js` — `assessment-model.js` (domain data shape),
-`interpretation.js` (readiness/confidence classification, to read from
-`js/config/interpretation-config.js`), and `assessment-workflow.js` (the
-13-stage AMSESHI lifecycle). All three currently contain only a
-documentation header and `export {}` — no logic yet, pending an
-explicitly approved implementation phase.
+**Phase 4.3 (implemented):** the three foundation stubs are now real,
+each strictly scoped to a single responsibility, none performing any
+calculation:
+
+| Module | Responsibility | Imports |
+|---|---|---|
+| `assessment-model.js` | Domain entities: `InstitutionProfile`, `SuccessFactorHierarchy`, `AssessmentMetadata`, `AssessmentRecord`. Pure data shape and validation. | `js/config/research-metadata.js` (version stamping only) |
+| `assessment-workflow.js` | `LIFECYCLE_STAGES` (13 stages, 4 phases) and `AssessmentWorkflow` (navigation: `next`/`previous`/`goTo`/`restart`, progress tracking). | None |
+| `interpretation.js` | `classifyReadiness`, `rateConsistencyConfidence`, `generateRecommendation`, `explainConsistency`/`explainReadiness`, and the `interpretAssessment` convenience wrapper. Converts already-computed numbers into labels — never derives new numbers. | `js/config/interpretation-config.js` (thresholds only) |
+
+`amseshi-framework.js` itself was **not modified** in Phase 4.3 — it
+still only calls `js/core/ahp-engine.js` and returns the exact Phase 3
+result shape. Wiring `interpretation.js`'s output into that result object
+is intentionally deferred to a future integration phase (likely
+`js/application/assessment-service.js`), so the already-verified,
+golden-tested output of `calculateEnhancedAHP` is never put at risk.
+
+**Update (2026-07-23) — ARIM separation:** `interpretation.js` was
+revised to remove the direct mapping from AHP alternative scores to a
+readiness classification (that mapping conflated a *relative* priority
+measure with an *absolute* readiness measure — see
+`docs/research-decisions/arim-separation.md`). The module now:
+
+| Function | Status |
+|---|---|
+| `rateConsistencyConfidence`, `explainConsistency` | Fully implemented, unaffected by the ARIM decision (CR measures judgment consistency, not readiness) |
+| `deriveInstitutionalReadiness` | Documented extension point; throws until the AMSESHI Readiness Interpretation Model (ARIM) methodology is defined |
+| `interpretAssessment` | Returns confidence in full; returns `readiness: { status: 'pending-arim-methodology', label: null }` rather than a guessed classification |
+
+`classifyReadiness` and `generateRecommendation` (v1) were removed
+entirely rather than left in a misleading state.
