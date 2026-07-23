@@ -1,5 +1,16 @@
 /**
- * ahp-engine.js
+ * Module Name: ahp-engine.js
+ * Purpose: Generic, reusable Analytic Hierarchy Process (AHP) calculation engine.
+ * Responsibilities:
+ *   - Compute priority (weight) vectors from pairwise comparison matrices
+ *   - Compute Saaty consistency ratios
+ *   - Aggregate hierarchical consistency across criteria and alternatives
+ * Dependencies:
+ *   - None
+ * Author: Yousif Hashim
+ * Version: 1.0.0
+ * Research Project: AMSESHI Academic Decision Support System (ADSS) — PhD Dissertation, Al Neelain University
+ * Last Updated: 2026-07-22
  * -----------------------------------------------------------------------
  * Generic Analytic Hierarchy Process (AHP) decision engine.
  *

@@ -59,3 +59,11 @@ verified against golden test cases; see `test/golden-cases/` and
 A future framework would be added as a sibling folder here, e.g.
 `js/frameworks/future-framework-a/`, importing from `js/core/` the same
 way `amseshi/` does.
+
+**Phase 4.1 addition:** three foundation stubs were added alongside
+`amseshi-framework.js` — `assessment-model.js` (domain data shape),
+`interpretation.js` (readiness/confidence classification, to read from
+`js/config/interpretation-config.js`), and `assessment-workflow.js` (the
+13-stage AMSESHI lifecycle). All three currently contain only a
+documentation header and `export {}` — no logic yet, pending an
+explicitly approved implementation phase.

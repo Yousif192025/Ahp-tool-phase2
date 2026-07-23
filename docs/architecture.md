@@ -69,6 +69,17 @@ See `docs/diagrams/module-dependency-diagram.svg` for the concrete
 before/after comparison: the current single 3,700-line inline script in
 `index.html` versus the target layered file structure.
 
+## 6.5 Phase 4.1 — Foundation layer
+
+Added `js/application/`, `js/ui/`, `js/storage/`, `js/config/`,
+`js/utils/` as new, currently-empty layers (each file is a documentation
+header + `export {}` stub). `research-metadata.js` moved from the old
+`js/metadata/` into its intended home, `js/config/`, with its content
+finalized (no more placeholders). `js/core/ahp-engine.js` and
+`js/frameworks/amseshi/amseshi-framework.js` each received an added
+documentation header comment — no logic changed. See
+`js/README-phase4.md` for the full folder-by-folder rationale.
+
 ## 7. What changed in Phase 2 and Phase 3, and what didn't
 
 **Phase 2 (organization only):** all code with zero references from

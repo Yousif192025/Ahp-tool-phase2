@@ -1,5 +1,18 @@
 /**
- * amseshi-framework.js
+ * Module Name: amseshi-framework.js
+ * Purpose: Orchestrates the AMSESHI assessment process (criteria and
+ *   alternatives -> AHP engine -> weighted institutional result).
+ * Responsibilities:
+ *   - Build and run a full AMSESHI assessment using the AHP engine
+ *   - Assemble criteria weights, alternative priorities, and consistency
+ *     diagnostics into a single assessment result
+ *   - Perform no matrix arithmetic itself — always delegates to js/core/
+ * Dependencies:
+ *   - js/core/ahp-engine.js
+ * Author: Yousif Hashim
+ * Version: 1.0.0
+ * Research Project: AMSESHI Academic Decision Support System (ADSS) — PhD Dissertation, Al Neelain University
+ * Last Updated: 2026-07-22
  * -----------------------------------------------------------------------
  * AMSESHI Success Factors Assessment Framework — orchestration layer.
  *
