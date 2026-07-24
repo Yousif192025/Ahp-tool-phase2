@@ -37,10 +37,13 @@
     <script type="module">
         import { calculatePriorityVector, calculateConsistencyRatio, calculateOverallConsistency } from './js/core/ahp-engine.js';
         import { calculateEnhancedAHP } from './js/frameworks/amseshi/amseshi-framework.js';
+        import { rateConsistencyConfidence, explainConsistency } from './js/frameworks/amseshi/interpretation.js';
         window.calculatePriorityVector = calculatePriorityVector;
         window.calculateConsistencyRatio = calculateConsistencyRatio;
         window.calculateOverallConsistency = calculateOverallConsistency;
         window.calculateEnhancedAHP = calculateEnhancedAHP;
+        window.rateConsistencyConfidence = rateConsistencyConfidence;
+        window.explainConsistency = explainConsistency;
     </script>
     
     <style>
@@ -1895,6 +1898,27 @@
                     • CR &ge; 0.10: Consider reviewing your pairwise comparisons
                 </p>
             `;
+
+            // AMSESHI Interpretation Layer: assessment confidence card.
+            // Purely additive — computed from the same overallCR already
+            // shown above, via js/frameworks/amseshi/interpretation.js
+            // (exposed as window.rateConsistencyConfidence /
+            // window.explainConsistency in <head>). Does not alter any
+            // existing display or calculation.
+            if (typeof window.rateConsistencyConfidence === 'function') {
+                const confidence = window.rateConsistencyConfidence(overallCR);
+                const explanation = window.explainConsistency(overallCR, confidence);
+                const stars = '★'.repeat(confidence.stars) + '☆'.repeat(5 - confidence.stars);
+                consistencyHTML += `
+                    <div style="margin: 15px 0; padding: 15px; background: #f4f2ff; border-radius: 5px; border: 1px solid #d9d3f7;">
+                        <strong>AMSESHI Assessment Confidence:</strong>
+                        <div style="margin-top: 8px; font-size: 20px; letter-spacing: 2px; color: #5b4bc4;">${stars}
+                            <span style="font-size: 14px; letter-spacing: normal; color: #333; margin-left: 8px;">${confidence.label}</span>
+                        </div>
+                        <p style="font-size: 13px; color: #666; margin-top: 8px;">${explanation}</p>
+                    </div>
+                `;
+            }
             
             content.innerHTML = consistencyHTML;
             container.style.display = 'block';
