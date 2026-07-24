@@ -80,23 +80,46 @@ finalized (no more placeholders). `js/core/ahp-engine.js` and
 documentation header comment — no logic changed. See
 `js/README-phase4.md` for the full folder-by-folder rationale.
 
-## 6.6 ARIM separation (research decision, 2026-07-23)
+## 6.6 Interpretation Layer separation (research decision, 2026-07-23)
 
 Institutional readiness is explicitly **not** derived from AHP priority
-weights/scores directly — see `docs/research-decisions/arim-separation.md`
-for the full rationale. The pipeline is:
+weights/scores directly — see
+`docs/research-decisions/interpretation-layer-separation.md` for the
+full rationale. The pipeline is entirely internal to the single AMSESHI
+Framework:
 
 ```
-Decision Analysis (AHP) -> Priority Analysis -> AMSESHI Interpretation
-Model (ARIM, not yet defined) -> Institutional Readiness Assessment
+AMSESHI Academic Decision Support System (ADSS)
+    ├── Assessment Workflow
+    ├── Assessment Model
+    ├── Decision Analysis Engine (AHP)
+    ├── Interpretation Layer
+    │     ├── Recommendation Engine        (not yet implemented)
+    │     └── Institutional Readiness Index (not yet implemented)
+    ├── Reporting
+    └── Visualization
 ```
 
-`js/frameworks/amseshi/interpretation.js` implements the well-defined
-part (consistency confidence from CR) in full, and exposes
-`deriveInstitutionalReadiness()` as a documented, currently-throwing
-extension point for ARIM once its methodology is validated. No change
-to `js/core/ahp-engine.js` or `amseshi-framework.js` is required when
-ARIM is eventually implemented.
+```
+AMSESHI Framework
+      -> Decision Analysis Engine (AHP)
+      -> Interpretation Layer
+      -> Institutional Readiness Assessment
+      -> Decision Support
+```
+
+`js/frameworks/amseshi/interpretation.js` (the AMSESHI Interpretation
+Layer) implements the well-defined part (consistency confidence from CR)
+in full, and exposes `deriveInstitutionalReadiness()` as a documented,
+currently-throwing extension point for the Institutional Readiness Index
+and Recommendation Engine, once that methodology is validated. No change
+to `js/core/ahp-engine.js` (Decision Analysis Engine) or
+`amseshi-framework.js` is required when that happens.
+
+**Terminology note:** this component was briefly called "ARIM" during
+design discussion. That name has been retired — it is not a second
+framework or model, only an internal layer of the single AMSESHI
+Framework. "ARIM" does not appear anywhere in the current codebase.
 
 ## 7. What changed in Phase 2 and Phase 3, and what didn't
 

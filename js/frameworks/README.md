@@ -77,17 +77,20 @@ is intentionally deferred to a future integration phase (likely
 `js/application/assessment-service.js`), so the already-verified,
 golden-tested output of `calculateEnhancedAHP` is never put at risk.
 
-**Update (2026-07-23) — ARIM separation:** `interpretation.js` was
+**Update (2026-07-23) — Interpretation Layer separation:**
+`interpretation.js` (the **AMSESHI Interpretation Layer** — an internal
+component of the single AMSESHI Framework, not a separate model) was
 revised to remove the direct mapping from AHP alternative scores to a
 readiness classification (that mapping conflated a *relative* priority
 measure with an *absolute* readiness measure — see
-`docs/research-decisions/arim-separation.md`). The module now:
+`docs/research-decisions/interpretation-layer-separation.md`). The
+module now:
 
 | Function | Status |
 |---|---|
-| `rateConsistencyConfidence`, `explainConsistency` | Fully implemented, unaffected by the ARIM decision (CR measures judgment consistency, not readiness) |
-| `deriveInstitutionalReadiness` | Documented extension point; throws until the AMSESHI Readiness Interpretation Model (ARIM) methodology is defined |
-| `interpretAssessment` | Returns confidence in full; returns `readiness: { status: 'pending-arim-methodology', label: null }` rather than a guessed classification |
+| `rateConsistencyConfidence`, `explainConsistency` | Fully implemented, unaffected by the separation (CR measures judgment consistency, not readiness) |
+| `deriveInstitutionalReadiness` | Documented extension point for the AMSESHI Framework's Institutional Readiness Index; throws until that methodology is defined |
+| `interpretAssessment` | Returns confidence in full; returns `readiness: { status: 'pending-methodology', label: null }` rather than a guessed classification |
 
 `classifyReadiness` and `generateRecommendation` (v1) were removed
 entirely rather than left in a misleading state.
