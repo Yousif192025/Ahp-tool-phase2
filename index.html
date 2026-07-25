@@ -732,6 +732,11 @@
         // ENHANCED AHP SYSTEM - STANDALONE VERSION
         // ============================================
         
+        // متغيرات التحكم لمنع بناء الجداول المتكرر
+        let isTablesInitialized = false;
+        let isBuildingTables = false;
+        let isTestDataLoaded = false;
+        
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Enhanced AHP System Initializing...');
             
@@ -751,7 +756,9 @@
             
             // فوري: تحميل بيانات الاختبار تلقائياً
             setTimeout(() => {
-                loadTestData();
+                if (!isTestDataLoaded) {
+                    loadTestData();
+                }
             }, 300);
             
             try {
@@ -934,20 +941,14 @@
             }
         }
         
-        function setupAlternativePairwiseTables() {
-            const criteriaCount = getValidCriteriaCount();
-            const itemsCount = getValidItemsCount();
-            
-            const container = document.getElementById('alternative-comparisons-container');
-            if (!container) return;
-            
-            if (criteriaCount < 2 || itemsCount < 2) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #95a5a6;">
-                        <p>Please enter at least 2 criteria and 2 alternatives to generate comparison tables.</p>
-                        <p>Current: ${criteriaCount} criteria, ${itemsCount} alternatives</p>
-                    </div>
-                `;
+        // ============================================
+        // ALTERNATIVE TABLES GENERATION (FIXED)
+        // ============================================
+        
+        function createAlternativeTables() {
+            // منع التنفيذ المتزامن
+            if (isBuildingTables) {
+                console.log('⏳ Tables already building, skipping...');
                 return;
             }
 
@@ -970,101 +971,377 @@
                 return;
             }
             
-            container.innerHTML = '';
+            // التأكد من أن DOM جاهز
+            if (!document.getElementById('alternative-comparisons-container')) {
+                console.log('⏳ Container not ready yet, scheduling...');
+                setTimeout(() => createAlternativeTables(), 100);
+                return;
+            }
             
-            for (let c = 0; c < criteriaCount; c++) {
-                const criterionName = document.getElementById(`criteria${c}`).value || `Criterion ${c + 1}`;
-                const criterionId = c;
+            isBuildingTables = true;
+            
+            try {
+                console.log('📊 Creating alternative comparison tables...');
+                const container = document.getElementById('alternative-comparisons-container');
+                if (!container) {
+                    console.error('❌ Container not found');
+                    isBuildingTables = false;
+                    return;
+                }
                 
-                const tableSection = document.createElement('div');
-                tableSection.className = 'criterion-comparison';
-                tableSection.innerHTML = `
-                    <h3>${criterionName}</h3>
-                    <p>Compare alternatives with respect to: <strong>${criterionName}</strong></p>
+                const criteriaCount = getValidCriteriaCount();
+                const itemsCount = getValidItemsCount();
+                
+                console.log(`📈 Criteria: ${criteriaCount}, Alternatives: ${itemsCount}`);
+                
+                if (criteriaCount < 1 || itemsCount < 2) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #95a5a6; background: #f8f9fa; border-radius: 10px; border: 2px dashed #dee2e6;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">📋</div>
+                            <h3 style="color: #6c757d; margin-bottom: 15px;">Comparison Tables Ready</h3>
+                            <p>Enter your criteria and alternatives above to generate comparison tables.</p>
+                            <p style="margin-top: 10px; font-size: 14px;">
+                                <strong>Current:</strong> ${criteriaCount} criteria, ${itemsCount} alternatives
+                            </p>
+                            <div style="margin-top: 20px;">
+                                <button onclick="loadTestData()" style="
+                                    padding: 10px 20px;
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    border: none;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-weight: bold;
+                                ">
+                                    📊 Load Test Data to Get Started
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    isBuildingTables = false;
+                    return;
+                }
+                
+                container.innerHTML = '';
+                
+                for (let c = 0; c < criteriaCount; c++) {
+                    const criterionName = document.getElementById(`criteria${c}`).value || `Criterion ${c + 1}`;
+                    const criterionId = c;
                     
-                    <div class="comparison-guide" style="margin-bottom: 20px;">
-                        <h4>💡 Tips for comparing alternatives:</h4>
-                        <p style="margin: 5px 0; font-size: 13px;">
-                            • <strong>Question to ask:</strong> "For ${criterionName}, how much more important is Alternative X compared to Alternative Y?"
-                        </p>
-                        <p style="margin: 5px 0; font-size: 13px;">
-                            • <strong>Example:</strong> If "Software A" is 5 times better than "Software B" in terms of ${criterionName}, enter 5
-                        </p>
-                    </div>
-                    
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    ${Array.from({length: itemsCount}, (_, i) => {
-                                        const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
-                                        return `<th title="${altName}">${altName.length > 15 ? altName.substring(0, 12) + '...' : altName}</th>`;
-                                    }).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${Array.from({length: itemsCount}, (_, i) => {
-                                    const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
-                                    return `
-                                        <tr>
-                                            <th title="${altName}">${altName.length > 15 ? altName.substring(0, 12) + '...' : altName}</th>
-                                            ${Array.from({length: itemsCount}, (_, j) => {
-                                                const inputId = `c${criterionId}_item${i}v${j}`;
-                                                if (i === j) {
-                                                    return `
-                                                        <td class="editable-cell">
-                                                            <input type="number" 
-                                                                   step="0.1"
-                                                                   min="0.111" 
-                                                                   max="9"
-                                                                   id="${inputId}"
-                                                                   value="1"
-                                                                   readonly
-                                                                   style="background:#f5f5f5">
-                                                        </td>
-                                                    `;
-                                                } else if (j > i) {
-                                                    return `
-                                                        <td class="editable-cell">
-                                                            <input type="number" 
-                                                                   step="0.1"
-                                                                   min="0.111" 
-                                                                   max="9"
-                                                                   id="${inputId}"
-                                                                   value="1"
-                                                                   oninput="validateAlternativeInput(this); updateAlternativeReciprocal(${criterionId}, ${i}, ${j}, this.value)"
-                                                                   onfocus="showAlternativeComparisonHelp(this, ${criterionId}, ${i}, ${j})"
-                                                                   onblur="hideAlternativeComparisonHelp(this)">
-                                                        </td>
-                                                    `;
-                                                } else {
-                                                    return `
-                                                        <td class="editable-cell">
-                                                            <input type="number" 
-                                                                   step="0.1"
-                                                                   id="${inputId}"
-                                                                   value="1"
-                                                                   readonly
-                                                                   style="background:#f5f5f5">
-                                                        </td>
-                                                    `;
-                                                }
+                    const tableSection = document.createElement('div');
+                    tableSection.className = 'criterion-comparison';
+                    tableSection.innerHTML = `
+                        <div style="
+                            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                            border-radius: 10px;
+                            padding: 20px;
+                            margin-bottom: 25px;
+                            border: 1px solid #dee2e6;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                        ">
+                            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
+                                    color: white;
+                                    width: 40px;
+                                    height: 40px;
+                                    border-radius: 50%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-weight: bold;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">
+                                    ${c + 1}
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; color: #2c3e50; font-size: 20px;">${criterionName}</h3>
+                                    <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px;">
+                                        Compare alternatives with respect to this criterion
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="comparison-guide" style="
+                                background: #e7f3ff;
+                                padding: 15px;
+                                border-radius: 8px;
+                                margin-bottom: 20px;
+                                border-left: 4px solid #3498db;
+                            ">
+                                <h4 style="color: #2c3e50; margin-top: 0; display: flex; align-items: center;">
+                                    <span style="margin-right: 8px;">💡</span> How to Compare
+                                </h4>
+                                <p style="margin: 5px 0; font-size: 13px;">
+                                    <strong>Question:</strong> "For <strong>${criterionName}</strong>, how much more important is Alternative X compared to Alternative Y?"
+                                </p>
+                                <p style="margin: 5px 0; font-size: 13px;">
+                                    <strong>Example:</strong> If "Software A" is 5 times better than "Software B", enter 5
+                                </p>
+                            </div>
+                            
+                            <div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: white;">
+                                <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                                    <thead>
+                                        <tr style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                                            <th style="
+                                                padding: 15px;
+                                                text-align: center;
+                                                font-weight: bold;
+                                                color: #2c3e50;
+                                                border-bottom: 2px solid #dee2e6;
+                                                position: sticky;
+                                                left: 0;
+                                                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                                                min-width: 150px;
+                                            "></th>
+                                            ${Array.from({length: itemsCount}, (_, i) => {
+                                                const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
+                                                const displayName = altName.length > 20 ? altName.substring(0, 17) + '...' : altName;
+                                                return `
+                                                    <th style="
+                                                        padding: 15px;
+                                                        text-align: center;
+                                                        font-weight: bold;
+                                                        color: #2c3e50;
+                                                        border-bottom: 2px solid #dee2e6;
+                                                        border-left: 1px solid #e0e0e0;
+                                                        min-width: 120px;
+                                                        position: relative;
+                                                    " title="${altName}">
+                                                        <div style="font-size: 13px; color: #3498db;">Alt ${i+1}</div>
+                                                        <div style="font-weight: bold; font-size: 14px; margin-top: 3px;">${displayName}</div>
+                                                    </th>
+                                                `;
                                             }).join('')}
                                         </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody>
+                                        ${Array.from({length: itemsCount}, (_, i) => {
+                                            const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
+                                            const displayName = altName.length > 20 ? altName.substring(0, 17) + '...' : altName;
+                                            return `
+                                                <tr style="${i === itemsCount - 1 ? '' : 'border-bottom: 1px solid #e0e0e0;'}">
+                                                    <th style="
+                                                        padding: 15px;
+                                                        text-align: center;
+                                                        font-weight: bold;
+                                                        color: #2c3e50;
+                                                        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                                                        position: sticky;
+                                                        left: 0;
+                                                        border-right: 1px solid #e0e0e0;
+                                                        min-width: 150px;
+                                                    " title="${altName}">
+                                                        <div style="font-size: 13px; color: #3498db;">Alt ${i+1}</div>
+                                                        <div style="font-weight: bold; font-size: 14px; margin-top: 3px;">${displayName}</div>
+                                                    </th>
+                                                    ${Array.from({length: itemsCount}, (_, j) => {
+                                                        const inputId = `c${criterionId}_item${i}v${j}`;
+                                                        
+                                                        if (i === j) {
+                                                            return `
+                                                                <td style="
+                                                                    padding: 10px;
+                                                                    text-align: center;
+                                                                    background: #f8f9fa;
+                                                                    border-left: 1px solid #e0e0e0;
+                                                                    min-width: 100px;
+                                                                ">
+                                                                    <div style="
+                                                                        width: 60px;
+                                                                        height: 60px;
+                                                                        background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+                                                                        color: white;
+                                                                        border-radius: 50%;
+                                                                        display: flex;
+                                                                        align-items: center;
+                                                                        justify-content: center;
+                                                                        margin: 0 auto;
+                                                                        font-weight: bold;
+                                                                        font-size: 18px;
+                                                                    ">
+                                                                        1
+                                                                    </div>
+                                                                </td>
+                                                            `;
+                                                        } else if (j > i) {
+                                                            return `
+                                                                <td style="
+                                                                    padding: 10px;
+                                                                    text-align: center;
+                                                                    background: white;
+                                                                    border-left: 1px solid #e0e0e0;
+                                                                    position: relative;
+                                                                    min-width: 100px;
+                                                                ">
+                                                                    <div class="editable-cell" style="position: relative;">
+                                                                        <input type="number" 
+                                                                               step="0.1"
+                                                                               min="0.111" 
+                                                                               max="9"
+                                                                               id="${inputId}"
+                                                                               value="1"
+                                                                               style="
+                                                                                    width: 70px;
+                                                                                    padding: 10px;
+                                                                                    border: 2px solid #3498db;
+                                                                                    border-radius: 6px;
+                                                                                    text-align: center;
+                                                                                    font-weight: bold;
+                                                                                    font-size: 16px;
+                                                                                    background: white;
+                                                                                    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.1);
+                                                                                    transition: all 0.3s ease;
+                                                                               "
+                                                                               oninput="handleAlternativeInput(this, ${criterionId}, ${i}, ${j})"
+                                                                               onfocus="showAltHelp(this, ${criterionId}, ${i}, ${j})"
+                                                                               onblur="hideAltHelp(this)">
+                                                                        <div class="quick-buttons" style="
+                                                                            display: flex;
+                                                                            gap: 3px;
+                                                                            margin-top: 8px;
+                                                                            justify-content: center;
+                                                                            flex-wrap: wrap;
+                                                                        ">
+                                                                            ${[1, 3, 5, 7, 9].map(val => `
+                                                                                <button type="button" 
+                                                                                        class="quick-btn" 
+                                                                                        onclick="setQuickValue(this, ${criterionId}, ${i}, ${j}, ${val})"
+                                                                                        style="
+                                                                                            padding: 4px 8px;
+                                                                                            font-size: 12px;
+                                                                                            border: 1px solid #dee2e6;
+                                                                                            border-radius: 4px;
+                                                                                            background: white;
+                                                                                            cursor: pointer;
+                                                                                            min-width: 30px;
+                                                                                            transition: all 0.2s ease;
+                                                                                        "
+                                                                                        onmouseover="this.style.background='#3498db';this.style.color='white';this.style.borderColor='#3498db'"
+                                                                                        onmouseout="this.style.background='white';this.style.color='#2c3e50';this.style.borderColor='#dee2e6'">
+                                                                                    ${val}
+                                                                                </button>
+                                                                            `).join('')}
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            `;
+                                                        } else {
+                                                            return `
+                                                                <td style="
+                                                                    padding: 10px;
+                                                                    text-align: center;
+                                                                    background: #f5f7fa;
+                                                                    border-left: 1px solid #e0e0e0;
+                                                                    min-width: 100px;
+                                                                ">
+                                                                    <input type="number" 
+                                                                           id="${inputId}"
+                                                                           value="1"
+                                                                           readonly
+                                                                           style="
+                                                                                width: 70px;
+                                                                                padding: 10px;
+                                                                                border: 1px solid #dee2e6;
+                                                                                border-radius: 6px;
+                                                                                text-align: center;
+                                                                                background: #f8f9fa;
+                                                                                color: #6c757d;
+                                                                                font-weight: bold;
+                                                                                font-size: 16px;
+                                                                                cursor: not-allowed;
+                                                                           ">
+                                                                </td>
+                                                            `;
+                                                        }
+                                                    }).join('')}
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div style="
+                                margin-top: 15px;
+                                padding: 12px;
+                                background: #f8f9fa;
+                                border-radius: 6px;
+                                border-left: 3px solid #3498db;
+                            ">
+                                <div style="font-size: 13px; color: #666; display: flex; align-items: center;">
+                                    <span style="margin-right: 8px;">📝</span>
+                                    <div>
+                                        <strong>Instructions:</strong> Enter values 1-9 where:
+                                        <ul style="margin: 5px 0 0 15px; padding: 0;">
+                                            <li>1 = Equal importance</li>
+                                            <li>9 = Extreme importance</li>
+                                            <li>Reciprocal values calculated automatically</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${itemsCount > 0 ? `
+                            <div style="margin-top: 15px; text-align: center;">
+                                <button onclick="setAllEqualForCriterion(${criterionId}, ${itemsCount})" 
+                                        style="
+                                            padding: 8px 16px;
+                                            background: #f8f9fa;
+                                            border: 1px solid #dee2e6;
+                                            border-radius: 4px;
+                                            cursor: pointer;
+                                            font-size: 13px;
+                                            color: #6c757d;
+                                            transition: all 0.2s ease;
+                                        "
+                                        onmouseover="this.style.background='#e9ecef';this.style.color='#495057'"
+                                        onmouseout="this.style.background='#f8f9fa';this.style.color='#6c757d'">
+                                    ⚖️ Set All Equal for This Criterion
+                                </button>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    container.appendChild(tableSection);
+                }
+                
+                // إضافة تذييل
+                const footer = document.createElement('div');
+                footer.style.cssText = `
+                    text-align: center;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                    border-radius: 10px;
+                    margin-top: 20px;
+                    border: 1px solid #dee2e6;
+                `;
+                footer.innerHTML = `
+                    <div style="color: #6c757d; font-size: 14px;">
+                        <strong>${criteriaCount}</strong> criterion comparison tables generated for <strong>${itemsCount}</strong> alternatives
                     </div>
-                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                        <p><strong>Instructions:</strong> Enter values 1-9 where 1 = equal importance, 9 = extreme importance</p>
-                        <p>Reciprocal values (1/x) will be calculated automatically</p>
+                    <div style="margin-top: 10px; font-size: 12px; color: #95a5a6;">
+                        Click the quick buttons (1, 3, 5, 7, 9) or enter values manually
                     </div>
                 `;
+                container.appendChild(footer);
                 
-                container.appendChild(tableSection);
+                // تحديث جميع القيم المتبادلة
+                updateAllAlternativeReciprocalValues(criteriaCount, itemsCount);
+                
+                isBuildingTables = false;
+                isTablesInitialized = true;
+                
+                console.log('✅ Alternative tables created successfully');
+                
+            } catch (error) {
+                console.error('❌ Error creating tables:', error);
+                isBuildingTables = false;
             }
+<<<<<<< HEAD
             
             updateAllAlternativeReciprocalValues(criteriaCount, itemsCount);
 
@@ -1085,81 +1362,96 @@
                 (document.getElementById(`item${i}`)?.value || '')
             );
             return JSON.stringify({ criteriaNames, itemNames });
+=======
+>>>>>>> 6f05c5477ca265c69dbb08955e538af36dab59b8
         }
         
-        // جعل الدوال متاحة عالمياً للاستخدام في HTML
-        window.validateAlternativeInput = function(input) {
+        // جعل الدوال متاحة عالمياً
+        window.handleAlternativeInput = function(input, criterionId, i, j) {
             const value = parseFloat(input.value);
             
-            if (isNaN(value)) {
-                input.className = 'invalid';
-                input.title = 'Please enter a valid number';
-                return false;
+            if (isNaN(value) || value < 0.111 || value > 9) {
+                input.style.borderColor = '#e74c3c';
+                input.style.background = '#fff5f5';
+                input.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.1)';
+                return;
             }
             
-            if (value < 0.111 || value > 9) {
-                input.className = 'invalid';
-                input.title = 'Value must be between 0.111 and 9';
-                return false;
-            }
-            
-            input.className = 'valid';
-            
-            // تحديد تسمية الأهمية
-            const roundedValue = Math.round(value);
-            const importanceLabels = {
-                1: 'Equal importance',
-                2: 'Between equal and moderate',
-                3: 'Moderate importance',
-                4: 'Between moderate and strong',
-                5: 'Strong importance',
-                6: 'Between strong and very strong',
-                7: 'Very strong importance',
-                8: 'Between very strong and extreme',
-                9: 'Extreme importance'
-            };
-            
-            if (value < 1) {
-                input.title = `Reciprocal of ${(1/value).toFixed(1)} (${(1/value).toFixed(1)} times less important)`;
-            } else {
-                input.title = importanceLabels[roundedValue] || `${value.toFixed(1)} times more important`;
-            }
-            
-            return true;
-        };
-        
-        window.updateAlternativeReciprocal = function(criterionId, i, j, value) {
-            if (!value || isNaN(parseFloat(value))) return;
+            input.style.borderColor = '#2ecc71';
+            input.style.background = '#f0fff4';
+            input.style.boxShadow = '0 0 0 3px rgba(46, 204, 113, 0.1)';
             
             const reciprocalInput = document.getElementById(`c${criterionId}_item${j}v${i}`);
-            if (reciprocalInput) {
-                const numValue = parseFloat(value);
-                if (numValue > 0) {
-                    reciprocalInput.value = (1 / numValue).toFixed(3);
-                    validateAlternativeInput(reciprocalInput);
+            if (reciprocalInput && value > 0) {
+                reciprocalInput.value = (1 / value).toFixed(3);
+                reciprocalInput.style.borderColor = '#2ecc71';
+                reciprocalInput.style.background = '#f0fff4';
+            }
+        };
+        
+        window.setQuickValue = function(button, criterionId, i, j, value) {
+            const input = document.getElementById(`c${criterionId}_item${i}v${j}`);
+            if (input) {
+                input.value = value;
+                window.handleAlternativeInput(input, criterionId, i, j);
+                
+                button.style.background = '#2ecc71';
+                button.style.color = 'white';
+                button.style.borderColor = '#2ecc71';
+                setTimeout(() => {
+                    button.style.background = '#3498db';
+                    button.style.color = 'white';
+                    button.style.borderColor = '#3498db';
+                }, 300);
+            }
+        };
+        
+        window.showAltHelp = function(input, criterionId, i, j) {
+            const criterion = document.getElementById(`criteria${criterionId}`).value || `Criterion ${criterionId+1}`;
+            const altI = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
+            const altJ = document.getElementById(`item${j}`).value || `Alternative ${j+1}`;
+            
+            const tooltip = document.createElement('div');
+            tooltip.className = 'alt-comparison-help';
+            tooltip.textContent = `For ${criterion}: ${altI} vs ${altJ}`;
+            tooltip.style.cssText = `
+                position: absolute;
+                top: -35px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #2c3e50;
+                color: white;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                white-space: nowrap;
+                z-index: 1000;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            `;
+            
+            input.parentNode.style.position = 'relative';
+            input.parentNode.appendChild(tooltip);
+        };
+        
+        window.hideAltHelp = function(input) {
+            const tooltip = input.parentNode.querySelector('.alt-comparison-help');
+            if (tooltip) {
+                tooltip.remove();
+            }
+        };
+        
+        window.setAllEqualForCriterion = function(criterionId, itemsCount) {
+            for (let i = 0; i < itemsCount; i++) {
+                for (let j = i + 1; j < itemsCount; j++) {
+                    const input = document.getElementById(`c${criterionId}_item${i}v${j}`);
+                    if (input) {
+                        input.value = '1';
+                        window.handleAlternativeInput(input, criterionId, i, j);
+                    }
                 }
             }
-        };
-        
-        window.showAlternativeComparisonHelp = function(input, criterionId, i, j) {
-            const altI = document.getElementById(`item${i}`)?.value || `Alternative ${i+1}`;
-            const altJ = document.getElementById(`item${j}`)?.value || `Alternative ${j+1}`;
-            const criterion = document.getElementById(`criteria${criterionId}`)?.value || `Criterion ${criterionId+1}`;
             
-            const helpDiv = document.createElement('div');
-            helpDiv.className = 'comparison-help';
-            helpDiv.textContent = `For ${criterion}: ${altI} vs ${altJ}`;
-            helpDiv.id = `help-alt-${criterionId}-${i}-${j}`;
-            
-            input.parentNode.appendChild(helpDiv);
-            helpDiv.style.display = 'block';
-        };
-        
-        window.hideAlternativeComparisonHelp = function(input) {
-            const helpDiv = input.parentNode.querySelector('.comparison-help');
-            if (helpDiv) {
-                helpDiv.style.display = 'none';
-            }
+            alert(`All comparisons for this criterion set to equal importance (value = 1)`);
         };
         
         function updateAllAlternativeReciprocalValues(criteriaCount, itemsCount) {
@@ -1168,7 +1460,13 @@
                     for (let j = i + 1; j < itemsCount; j++) {
                         const input = document.getElementById(`c${c}_item${i}v${j}`);
                         if (input && input.value) {
-                            updateAlternativeReciprocal(c, i, j, input.value);
+                            const value = parseFloat(input.value);
+                            if (!isNaN(value) && value > 0) {
+                                const reciprocalInput = document.getElementById(`c${c}_item${j}v${i}`);
+                                if (reciprocalInput) {
+                                    reciprocalInput.value = (1 / value).toFixed(3);
+                                }
+                            }
                         }
                     }
                 }
@@ -1264,7 +1562,9 @@
                     criteriaInput.addEventListener('input', function() {
                         setTimeout(() => {
                             updateCriteriaHeaders();
-                            setupAlternativePairwiseTables();
+                            if (!isBuildingTables && isTablesInitialized) {
+                                createAlternativeTables();
+                            }
                         }, 100);
                     });
                 }
@@ -1272,7 +1572,9 @@
                 if (itemInput) {
                     itemInput.addEventListener('input', function() {
                         setTimeout(() => {
-                            setupAlternativePairwiseTables();
+                            if (!isBuildingTables && isTablesInitialized) {
+                                createAlternativeTables();
+                            }
                         }, 100);
                     });
                 }
@@ -1288,12 +1590,10 @@
         }
         
         function setAllComparisonsToEqual() {
-            // تعيين جميع مقارنات المعايير إلى 1
             document.querySelectorAll('#pairwise_criteria input:not([readonly])').forEach(input => {
                 input.value = '1';
                 validateInput(input);
                 
-                // تحديث القيم المتبادلة
                 const id = input.id;
                 const match = id.match(/criteria(\d+)v(\d+)/);
                 if (match) {
@@ -1303,7 +1603,6 @@
                 }
             });
             
-            // تعيين جميع مقارنات البدائل إلى 1
             const criteriaCount = getValidCriteriaCount();
             const itemsCount = getValidItemsCount();
             
@@ -1313,11 +1612,8 @@
                         const input = document.getElementById(`c${c}_item${i}v${j}`);
                         if (input) {
                             input.value = '1';
-                            if (window.validateAlternativeInput) {
-                                window.validateAlternativeInput(input);
-                            }
-                            if (window.updateAlternativeReciprocal) {
-                                window.updateAlternativeReciprocal(c, i, j, '1');
+                            if (window.handleAlternativeInput) {
+                                window.handleAlternativeInput(input, c, i, j);
                             }
                         }
                     }
@@ -1411,6 +1707,11 @@
         // ============================================
         
         function loadTestData() {
+            if (isTestDataLoaded) {
+                console.log('📥 Test data already loaded, skipping...');
+                return;
+            }
+            
             console.log('📥 Loading test data...');
             
             try {
@@ -1485,8 +1786,11 @@
                     }
                 });
                 
-                setupAlternativePairwiseTables();
+                // توليد جداول البدائل
+                createAlternativeTables();
                 fillAlternativeTestData();
+                
+                isTestDataLoaded = true;
                 
                 updateEnhancedStatus('✓ Test data loaded successfully');
                 updateResultsStatus('✓ Test data loaded! Click "Calculate Enhanced Results" to analyze.', 'success');
@@ -1553,8 +1857,8 @@
                             if (input && sampleMatrices[c][i] && sampleMatrices[c][i][j]) {
                                 const value = sampleMatrices[c][i][j];
                                 input.value = value.toFixed(3);
-                                if (window.updateAlternativeReciprocal) {
-                                    window.updateAlternativeReciprocal(c, i, j, input.value);
+                                if (window.handleAlternativeInput) {
+                                    window.handleAlternativeInput(input, c, i, j);
                                 }
                             }
                         }
@@ -1580,6 +1884,9 @@
                 if (container) {
                     container.innerHTML = '<p style="text-align: center; padding: 40px; color: #95a5a6;">Enter your criteria and alternatives above to generate comparison tables</p>';
                 }
+                
+                isTestDataLoaded = false;
+                isTablesInitialized = false;
                 
                 clearEnhancedResults();
                 
@@ -1657,7 +1964,7 @@
                     throw new Error(validation.message);
                 }
                 
-                setupAlternativePairwiseTables();
+                createAlternativeTables();
                 
                 const altValidation = validateAlternativeComparisons();
                 if (!altValidation.valid) {
@@ -1680,12 +1987,6 @@
                 updateResultsStatus('Performing AHP calculation...', 'loading');
                 
                 const results = await performCalculation(validation.data);
-                
-                // UI Integration Layer migration (Phase 4.6), Step 4:
-                // window.lastCalculationResults removed. window.lastAssessment
-                // (set inside performCalculation) is now the single source
-                // of truth; `results` here is simply assessment.result,
-                // kept as a local variable for the display calls below.
                 
                 displayEnhancedResults(results);
                 
@@ -1812,23 +2113,11 @@
                 const criteriaMatrix = createCriteriaMatrix(data.criteria.length);
                 const alternativeMatrices = createAlternativeMatrices(data.criteria.length, data.items.length);
 
-                // UI Integration Layer migration (Phase 4.6), Step 2: route
-                // through assessmentService.runAssessment() instead of
-                // calling calculateEnhancedAHP directly. runAssessment
-                // requires an institution name, which the UI does not yet
-                // collect (no Institution Information step exists yet) —
-                // the goal text is used as a placeholder until that UI
-                // step is built. The Assessment Object is stashed on
-                // window.lastAssessment for future steps (charts,
-                // reporting), while this function's RETURN VALUE stays
-                // byte-for-byte identical in shape to before
-                // (assessment.result === the old raw `results` object),
-                // so no display function needs to change in this step.
                 const goalInput = document.getElementById('goal');
                 const goal = (goalInput && goalInput.value) ? goalInput.value : 'AMSESHI Assessment';
 
                 const assessment = window.runAssessment({
-                    institution: { name: goal }, // TODO: replace with a real Institution Information step
+                    institution: { name: goal },
                     hierarchy: { goal, criteria: data.criteria, alternatives: data.items },
                     projectName: goal,
                     criteriaMatrix,
@@ -1844,15 +2133,6 @@
                 throw new Error('Calculation failed: ' + error.message);
             }
         }
-        
-        // UI Integration Layer migration (Phase 4.6), Step 1:
-        // split DOM-reading from matrix-building logic. The DOM-reading
-        // half now lives in collectCriteriaComparisonValues(); the pure
-        // matrix-building logic (identical to before) lives in
-        // buildCriteriaMatrix(). createCriteriaMatrix() is kept as a
-        // thin backward-compatible wrapper so every existing call site
-        // is unchanged. See test/verify-matrix-split.mjs for the
-        // equivalence proof against the pre-split behavior.
 
         function collectCriteriaComparisonValues(criteriaCount) {
             const overrides = {};
@@ -1923,15 +2203,11 @@
         }
         
         // ============================================
-        // ENHANCED AHP ALGORITHM
+        // ENHANCED AHP ALGORITHM (imported from modules)
         // ============================================
         // calculateEnhancedAHP, calculatePriorityVector,
-        // calculateConsistencyRatio, and calculateOverallConsistency were
-        // extracted in Phase 3 to js/core/ahp-engine.js and
-        // js/frameworks/amseshi/amseshi-framework.js (same algorithm,
-        // verified against golden test cases — see docs/reproducibility/).
-        // They are loaded as a module in <head> and exposed on `window`,
-        // so every call site below is unchanged.
+        // calculateConsistencyRatio, and calculateOverallConsistency are
+        // loaded as modules in <head> and exposed on `window`
         
         // ============================================
         // RESULTS DISPLAY FUNCTIONS
@@ -1994,14 +2270,6 @@
                 </p>
             `;
 
-            // UI Integration Layer migration (Phase 4.6), Step 3: read
-            // confidence from window.lastAssessment.interpretation (the
-            // Assessment Object — single source of truth, set by
-            // performCalculation via assessmentService.runAssessment)
-            // instead of recomputing it here. Falls back to a direct
-            // recompute only if no Assessment Object is available yet
-            // (e.g. this function called out of the normal flow),
-            // preserving the exact Phase 4.5 behavior in that case.
             const liveConfidence = (window.lastAssessment && window.lastAssessment.interpretation)
                 ? window.lastAssessment.interpretation.confidence
                 : (typeof window.rateConsistencyConfidence === 'function'
@@ -2516,1269 +2784,334 @@
         }
         
         // ============================================
-        // FIX: INITIALIZE TABLES ON PAGE LOAD
+        // INITIALIZATION ON PAGE LOAD (FIXED)
         // ============================================
         
-        // تأخير التنفيذ قليلاً لضمان تحميل DOM كاملاً
+        // التأكد من تحميل DOM بالكامل قبل التهيئة
         setTimeout(function() {
             console.log('🔄 Initializing tables on page load...');
             
-            // 1. تهيئة جدول مقارنات المعايير
-            setupCriteriaPairwiseTable();
-            
-            // 2. تحديث رؤوس الجدول
-            updateCriteriaHeaders();
-            
-            // 3. تهيئة جداول مقارنات البدائل
-            setupAlternativePairwiseTables();
-            
-            // 4. تحديث حالة النظام
-            updateEnhancedStatus('Tables initialized successfully');
-            updateSystemStatus();
+            if (!isTablesInitialized) {
+                setupCriteriaPairwiseTable();
+                updateCriteriaHeaders();
+                createAlternativeTables();
+                updateEnhancedStatus('Tables initialized successfully');
+                updateSystemStatus();
+            }
             
             console.log('✅ Tables initialized');
         }, 500);
         
+        // دمج الميزات المحسنة بعد التهيئة
+        setTimeout(function() {
+            console.log('🔗 Merging enhanced features...');
+            
+            // تحميل بيانات الاختبار إذا لم تكن محملة
+            const criteriaCount = getValidCriteriaCount();
+            const itemsCount = getValidItemsCount();
+            if (criteriaCount < 2 || itemsCount < 2 && !isTestDataLoaded) {
+                loadTestData();
+            }
+            
+            // تحديث الجداول فقط إذا لم تكن مهيأة
+            if (!isTablesInitialized) {
+                createAlternativeTables();
+            }
+            
+            // إضافة إشعارات متقدمة
+            addAdvancedNotifications();
+            
+            // تحديث حالة النظام
+            updateSystemStatus();
+            updateEnhancedStatus('✅ System fully loaded with enhanced features');
+            
+            console.log('✅ Enhanced features merged successfully');
+        }, 1000);
+        
         // ============================================
-        // FIX: ENSURE ALTERNATIVE TABLES UPDATE WHEN INPUTS CHANGE
+        // QUICK ACTIONS PANEL
         // ============================================
         
-        // تحديث جداول البدائل عند تغيير أي إدخال
-        document.addEventListener('input', function(e) {
-            if (e.target.id && (e.target.id.startsWith('criteria') || e.target.id.startsWith('item'))) {
-                setTimeout(() => {
-                    setupAlternativePairwiseTables();
-                }, 300);
-            }
-        });
-        
-        // ============================================
-        // FIX: VALIDATE ALL INPUTS ON BLUR
-        // ============================================
-        
-        document.addEventListener('blur', function(e) {
-            if (e.target.type === 'number' && !e.target.readOnly) {
-                if (e.target.id && e.target.id.startsWith('criteria')) {
-                    validateInput(e.target);
-                }
-            }
-        }, true);
-        // ============================================
-// INTEGRATION: MERGE ENHANCED FEATURES
-// ============================================
-
-// تأخير التهيئة النهائية
-setTimeout(function() {
-    console.log('🔗 Merging enhanced features...');
-    
-    // 1. ضمان تحميل البيانات الاختبارية
-    ensureTestDataLoaded();
-    
-    // 2. تحديث جميع الجداول
-    refreshAllTables();
-    
-    // 3. إضافة إشعارات متقدمة
-    addAdvancedNotifications();
-    
-    // 4. تحديث حالة النظام
-    updateSystemStatus();
-    updateEnhancedStatus('✅ System fully loaded with enhanced features');
-    
-    console.log('✅ Enhanced features merged successfully');
-}, 1000);
-
-function ensureTestDataLoaded() {
-    // التحقق من وجود بيانات، وإلا تحميل بيانات الاختبار
-    const criteriaCount = getValidCriteriaCount();
-    const itemsCount = getValidItemsCount();
-    
-    if (criteriaCount < 2 || itemsCount < 2) {
-        console.log('🔄 Loading test data automatically...');
-        loadTestData();
-    }
-}
-
-function refreshAllTables() {
-    // تحديث جميع الجداول
-    setupCriteriaPairwiseTable();
-    updateCriteriaHeaders();
-    setupAlternativePairwiseTables();
-    
-    // إضافة تأثير بسيط للجداول
-    const tables = document.querySelectorAll('table');
-    tables.forEach(table => {
-        table.style.opacity = '0';
-        setTimeout(() => {
-            table.style.transition = 'opacity 0.5s ease';
-            table.style.opacity = '1';
-        }, 100);
-    });
-}
-
-function addAdvancedNotifications() {
-    // إنشاء حاوية للإشعارات المتقدمة
-    if (!document.getElementById('advanced-notifications')) {
-        const notificationContainer = document.createElement('div');
-        notificationContainer.id = 'advanced-notifications';
-        notificationContainer.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 350px;
-            z-index: 99999;
-            max-height: 80vh;
-            overflow-y: auto;
-        `;
-        
-        // إضافة أنيميشن
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideInRight {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            
-            @keyframes slideOutRight {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-            
-            .advanced-notification {
-                animation: slideInRight 0.3s ease forwards;
-                margin-bottom: 10px;
-                border-radius: 8px;
-                padding: 15px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-                display: flex;
-                align-items: center;
-                position: relative;
-                overflow: hidden;
-            }
-            
-            .advanced-notification::before {
-                content: '';
-                position: absolute;
-                left: 0;
-                top: 0;
-                height: 100%;
-                width: 4px;
-            }
-            
-            .notification-success {
-                background: linear-gradient(135deg, #d4edda, #c3e6cb);
-                color: #155724;
-                border: 1px solid #b1dfbb;
-            }
-            
-            .notification-success::before {
-                background: #28a745;
-            }
-            
-            .notification-error {
-                background: linear-gradient(135deg, #f8d7da, #f5c6cb);
-                color: #721c24;
-                border: 1px solid #f1b0b7;
-            }
-            
-            .notification-error::before {
-                background: #dc3545;
-            }
-            
-            .notification-warning {
-                background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-                color: #856404;
-                border: 1px solid #ffeaa7;
-            }
-            
-            .notification-warning::before {
-                background: #ffc107;
-            }
-            
-            .notification-info {
-                background: linear-gradient(135deg, #d1ecf1, #bee5eb);
-                color: #0c5460;
-                border: 1px solid #abdde5;
-            }
-            
-            .notification-info::before {
-                background: #17a2b8;
-            }
-            
-            .notification-icon {
-                font-size: 24px;
-                margin-right: 12px;
-                flex-shrink: 0;
-            }
-            
-            .notification-content {
-                flex-grow: 1;
-            }
-            
-            .notification-title {
-                font-weight: bold;
-                margin-bottom: 5px;
-                font-size: 14px;
-            }
-            
-            .notification-message {
-                font-size: 13px;
-                line-height: 1.4;
-            }
-            
-            .notification-close {
-                background: none;
-                border: none;
-                font-size: 20px;
-                color: inherit;
-                opacity: 0.7;
-                cursor: pointer;
-                padding: 0;
-                margin-left: 10px;
-                flex-shrink: 0;
-                transition: opacity 0.2s;
-            }
-            
-            .notification-close:hover {
-                opacity: 1;
-            }
-        `;
-        
-        document.head.appendChild(style);
-        document.body.appendChild(notificationContainer);
-    }
-}
-
-// ============================================
-// ADVANCED NOTIFICATION SYSTEM
-// ============================================
-
-function showAdvancedNotification(title, message, type = 'info', duration = 5000) {
-    const container = document.getElementById('advanced-notifications');
-    if (!container) return;
-    
-    const notification = document.createElement('div');
-    notification.className = `advanced-notification notification-${type}`;
-    
-    const icons = {
-        success: '✅',
-        error: '❌',
-        warning: '⚠️',
-        info: 'ℹ️'
-    };
-    
-    notification.innerHTML = `
-        <span class="notification-icon">${icons[type] || 'ℹ️'}</span>
-        <div class="notification-content">
-            <div class="notification-title">${title}</div>
-            <div class="notification-message">${message}</div>
-        </div>
-        <button class="notification-close" onclick="this.parentElement.remove()">×</button>
-    `;
-    
-    container.appendChild(notification);
-    
-    // إزالة تلقائية بعد المدة المحددة
-    if (duration > 0) {
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.style.animation = 'slideOutRight 0.3s ease forwards';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.remove();
+        function addAdvancedNotifications() {
+            if (!document.getElementById('advanced-notifications')) {
+                const notificationContainer = document.createElement('div');
+                notificationContainer.id = 'advanced-notifications';
+                notificationContainer.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    width: 350px;
+                    z-index: 99999;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                `;
+                
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
                     }
-                }, 300);
+                    
+                    @keyframes slideOutRight {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                    
+                    .advanced-notification {
+                        animation: slideInRight 0.3s ease forwards;
+                        margin-bottom: 10px;
+                        border-radius: 8px;
+                        padding: 15px;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                        display: flex;
+                        align-items: center;
+                        position: relative;
+                        overflow: hidden;
+                    }
+                    
+                    .advanced-notification::before {
+                        content: '';
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        height: 100%;
+                        width: 4px;
+                    }
+                    
+                    .notification-success {
+                        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+                        color: #155724;
+                        border: 1px solid #b1dfbb;
+                    }
+                    
+                    .notification-success::before {
+                        background: #28a745;
+                    }
+                    
+                    .notification-error {
+                        background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+                        color: #721c24;
+                        border: 1px solid #f1b0b7;
+                    }
+                    
+                    .notification-error::before {
+                        background: #dc3545;
+                    }
+                    
+                    .notification-warning {
+                        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+                        color: #856404;
+                        border: 1px solid #ffeaa7;
+                    }
+                    
+                    .notification-warning::before {
+                        background: #ffc107;
+                    }
+                    
+                    .notification-info {
+                        background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+                        color: #0c5460;
+                        border: 1px solid #abdde5;
+                    }
+                    
+                    .notification-info::before {
+                        background: #17a2b8;
+                    }
+                    
+                    .notification-icon {
+                        font-size: 24px;
+                        margin-right: 12px;
+                        flex-shrink: 0;
+                    }
+                    
+                    .notification-content {
+                        flex-grow: 1;
+                    }
+                    
+                    .notification-title {
+                        font-weight: bold;
+                        margin-bottom: 5px;
+                        font-size: 14px;
+                    }
+                    
+                    .notification-message {
+                        font-size: 13px;
+                        line-height: 1.4;
+                    }
+                    
+                    .notification-close {
+                        background: none;
+                        border: none;
+                        font-size: 20px;
+                        color: inherit;
+                        opacity: 0.7;
+                        cursor: pointer;
+                        padding: 0;
+                        margin-left: 10px;
+                        flex-shrink: 0;
+                        transition: opacity 0.2s;
+                    }
+                    
+                    .notification-close:hover {
+                        opacity: 1;
+                    }
+                `;
+                
+                document.head.appendChild(style);
+                document.body.appendChild(notificationContainer);
             }
-        }, duration);
-    }
-}
-
-// ============================================
-// ENHANCED SENSITIVITY ANALYSIS (من integration.js)
-// ============================================
-
-function performAdvancedSensitivityAnalysis(results) {
-    console.log('📈 Running advanced sensitivity analysis...');
-    
-    showAdvancedNotification('Sensitivity Analysis', 'Analyzing model stability...', 'info');
-    
-    try {
-        const { criteria, alternatives } = results;
-        const scenarios = [];
-        
-        // تحليل حساسية أكثر تفصيلاً
-        for (let i = 0; i < criteria.labels.length; i++) {
-            const scenario = {
-                criterion: criteria.labels[i],
-                originalWeight: (criteria.normalizedWeights[i] * 100).toFixed(1) + '%',
-                variations: []
-            };
-            
-            // تحليل تغييرات متعددة (±10%, ±20%, ±30%)
-            const variations = [0.7, 0.8, 0.9, 1.1, 1.2, 1.3];
-            
-            variations.forEach(variation => {
-                const newWeights = [...criteria.normalizedWeights];
-                newWeights[i] *= variation;
-                
-                // إعادة تطبيع الأوزان
-                const sum = newWeights.reduce((a, b) => a + b, 0);
-                const normalized = newWeights.map(w => w / sum);
-                
-                const newScores = calculateNewScores(normalized, results);
-                const newRankings = getRankings(newScores, alternatives.labels);
-                
-                scenario.variations.push({
-                    change: ((variation - 1) * 100).toFixed(0) + '%',
-                    topAlternative: newRankings[0].alternative,
-                    scoreChange: ((newRankings[0].score - alternatives.scores[alternatives.labels.indexOf(newRankings[0].alternative)]) * 100).toFixed(1) + '%',
-                    rankingChanged: newRankings[0].alternative !== alternatives.labels[alternatives.scores.indexOf(Math.max(...alternatives.scores))]
-                });
-            });
-            
-            scenarios.push(scenario);
         }
         
-        displayAdvancedSensitivityResults(scenarios, results);
-        
-    } catch (error) {
-        console.error('Advanced sensitivity analysis error:', error);
-        showAdvancedNotification('Analysis Error', error.message, 'error');
-    }
-}
-
-function getRankings(scores, labels) {
-    return labels.map((label, index) => ({
-        alternative: label,
-        score: scores[index],
-        rank: 0
-    }))
-    .sort((a, b) => b.score - a.score)
-    .map((item, index) => ({
-        ...item,
-        rank: index + 1
-    }));
-}
-
-function displayAdvancedSensitivityResults(scenarios, results) {
-    const container = document.getElementById('sensitivity-container');
-    if (!container) return;
-    
-    container.style.display = 'block';
-    
-    const { alternatives } = results;
-    const originalTop = alternatives.labels[alternatives.scores.indexOf(Math.max(...alternatives.scores))];
-    
-    let html = `
-        <div style="margin-bottom: 25px;">
-            <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                <span style="font-size: 24px; margin-right: 10px;">📈</span>
-                <div>
-                    <h4 style="margin: 0; color: #2c3e50;">Advanced Sensitivity Analysis</h4>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
-                        Original top alternative: <strong style="color: #e74c3c;">${originalTop}</strong>
-                    </p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="sensitivity-scenarios" style="
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        ">
-    `;
-    
-    scenarios.forEach(scenario => {
-        const hasRankingChange = scenario.variations.some(v => v.rankingChanged);
-        
-        html += `
-            <div style="
-                background: ${hasRankingChange ? '#fff5f5' : '#f8f9fa'};
-                border: 2px solid ${hasRankingChange ? '#f8d7da' : '#e9ecef'};
-                border-radius: 8px;
-                padding: 15px;
-                transition: transform 0.3s ease;
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h5 style="margin: 0; color: #2c3e50; font-size: 15px;">${scenario.criterion}</h5>
-                    <span style="
-                        font-size: 12px;
-                        padding: 3px 8px;
-                        background: ${hasRankingChange ? '#f8d7da' : '#d4edda'};
-                        color: ${hasRankingChange ? '#721c24' : '#155724'};
-                        border-radius: 4px;
-                        font-weight: bold;
-                    ">
-                        ${scenario.originalWeight}
-                    </span>
-                </div>
-                
-                <div style="font-size: 13px; color: #666;">
-                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: rgba(0,0,0,0.03);">
-                                <th style="padding: 5px; text-align: left;">Change</th>
-                                <th style="padding: 5px; text-align: left;">Top Alternative</th>
-                                <th style="padding: 5px; text-align: left;">Impact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
-        scenario.variations.forEach(variation => {
-            const isPositive = parseFloat(variation.change) > 0;
+        function showAdvancedNotification(title, message, type = 'info', duration = 5000) {
+            const container = document.getElementById('advanced-notifications');
+            if (!container) return;
             
-            html += `
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 5px; color: ${isPositive ? '#28a745' : '#dc3545'}; font-weight: bold;">
-                        ${isPositive ? '+' : ''}${variation.change}
-                    </td>
-                    <td style="padding: 5px; color: ${variation.rankingChanged ? '#e74c3c' : '#2c3e50'};">
-                        ${variation.topAlternative}
-                        ${variation.rankingChanged ? ' <span style="color: #e74c3c;">(Changed)</span>' : ''}
-                    </td>
-                    <td style="padding: 5px; color: #666;">
-                        ${variation.scoreChange}
-                    </td>
-                </tr>
+            const notification = document.createElement('div');
+            notification.className = `advanced-notification notification-${type}`;
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            notification.innerHTML = `
+                <span class="notification-icon">${icons[type] || 'ℹ️'}</span>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
             `;
-        });
+            
+            container.appendChild(notification);
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.style.animation = 'slideOutRight 0.3s ease forwards';
+                        setTimeout(() => {
+                            if (notification.parentNode) {
+                                notification.remove();
+                            }
+                        }, 300);
+                    }
+                }, duration);
+            }
+        }
         
-        html += `
-                        </tbody>
-                    </table>
-                </div>
+        function addQuickActionsPanel() {
+            const sidebar = document.querySelector('aside');
+            if (!sidebar) return;
+            
+            if (document.getElementById('quick-actions-panel')) return;
+            
+            const panel = document.createElement('div');
+            panel.id = 'quick-actions-panel';
+            panel.style.cssText = `
+                margin-top: 20px;
+                padding: 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 10px;
+                color: white;
+                box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+            `;
+            
+            panel.innerHTML = `
+                <h4 style="margin-top: 0; color: white; font-size: 16px; display: flex; align-items: center;">
+                    <span style="margin-right: 8px;">⚡</span> Quick Actions
+                </h4>
                 
-                ${hasRankingChange ? `
-                <div style="
-                    margin-top: 10px;
-                    padding: 8px;
-                    background: #fff3cd;
-                    border-radius: 4px;
-                    font-size: 11px;
-                    color: #856404;
-                    text-align: center;
-                ">
-                    ⚠️ Ranking changes with weight variation
-                </div>
-                ` : ''}
-            </div>
-        `;
-    });
-    
-    html += `
-        </div>
-        
-        <div style="
-            background: #e7f3ff;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #3498db;
-        ">
-            <h5 style="margin-top: 0; color: #2c3e50;">📊 Interpretation Guide</h5>
-            <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 14px; color: #2c3e50;">
-                <li><strong>Red background:</strong> Criterion where ranking changes with weight variation</li>
-                <li><strong>Green/Red percentage:</strong> Weight increase/decrease</li>
-                <li><strong>Red alternative name:</strong> Ranking changed from original</li>
-            </ul>
-            
-            <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 6px;">
-                <strong style="color: #2c3e50;">💡 Recommendation:</strong>
-                <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">
-                    Focus on high-sensitivity criteria in your decision-making process. 
-                    Consider collecting more data or expert opinions for these criteria.
-                </p>
-            </div>
-        </div>
-        
-        <div style="margin-top: 25px; text-align: center;">
-            <button id="export-sensitivity" style="
-                padding: 12px 25px;
-                background: linear-gradient(135deg, #9b59b6, #8e44ad);
-                color: white;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: bold;
-                font-size: 14px;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(155, 89, 182, 0.3);
-            ">
-                📥 Export Sensitivity Report
-            </button>
-        </div>
-    `;
-    
-    const content = document.getElementById('sensitivity-content');
-    if (content) {
-        content.innerHTML = html;
-        
-        // إضافة حدث التصدير
-        document.getElementById('export-sensitivity')?.addEventListener('click', function() {
-            exportSensitivityReport(scenarios, results);
-        });
-    }
-}
-
-function exportSensitivityReport(scenarios, results) {
-    let csv = 'Criterion,Original Weight,Variation,Top Alternative,Score Change,Ranking Changed\n';
-    
-    scenarios.forEach(scenario => {
-        scenario.variations.forEach(variation => {
-            csv += `"${scenario.criterion}",${scenario.originalWeight},${variation.change},"${variation.topAlternative}",${variation.scoreChange},${variation.rankingChanged}\n`;
-        });
-    });
-    
-    downloadFile(csv, 'sensitivity-analysis.csv', 'text/csv');
-    showAdvancedNotification('Export Complete', 'Sensitivity report exported as CSV', 'success');
-}
-
-// ============================================
-// ENHANCED CALCULATION (من integration.js)
-// ============================================
-
-function runAdvancedCalculation() {
-    console.log('🚀 Running advanced calculation...');
-    
-    showAdvancedNotification('Advanced Calculation', 'Starting enhanced AHP analysis...', 'info');
-    
-    // استخدام الدالة الموجودة مع إضافة ميزات متقدمة
-    runEnhancedCalculation();
-}
-
-// ============================================
-// QUICK ACTIONS PANEL (من integration.js)
-// ============================================
-
-function addQuickActionsPanel() {
-    const sidebar = document.querySelector('aside');
-    if (!sidebar) return;
-    
-    // التحقق إذا كانت اللوحة موجودة
-    if (document.getElementById('quick-actions-panel')) return;
-    
-    const panel = document.createElement('div');
-    panel.id = 'quick-actions-panel';
-    panel.style.cssText = `
-        margin-top: 20px;
-        padding: 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 10px;
-        color: white;
-        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
-    `;
-    
-    panel.innerHTML = `
-        <h4 style="margin-top: 0; color: white; font-size: 16px; display: flex; align-items: center;">
-            <span style="margin-right: 8px;">⚡</span> Quick Actions
-        </h4>
-        
-        <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px;">
-            <button id="quick-test" class="quick-action-btn" style="background: rgba(255,255,255,0.2);">
-                <span style="margin-right: 6px;">📊</span> Load Test Data
-            </button>
-            <button id="quick-calc" class="quick-action-btn" style="background: rgba(255,255,255,0.2);">
-                <span style="margin-right: 6px;">🚀</span> Quick Calculate
-            </button>
-            <button id="quick-reset" class="quick-action-btn" style="background: rgba(255,255,255,0.2);">
-                <span style="margin-right: 6px;">🔄</span> Reset Form
-            </button>
-        </div>
-        
-        <div style="font-size: 12px; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
-            <strong>Tip:</strong> Click "Set All Equal" for quick comparison setup
-        </div>
-        
-        <style>
-            .quick-action-btn {
-                padding: 10px;
-                border: none;
-                border-radius: 6px;
-                color: white;
-                cursor: pointer;
-                font-size: 14px;
-                transition: all 0.3s ease;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            .quick-action-btn:hover {
-                background: rgba(255,255,255,0.3) !important;
-                transform: translateY(-2px);
-                box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-            }
-        </style>
-    `;
-    
-    sidebar.appendChild(panel);
-    
-    // إضافة الأحداث
-    document.getElementById('quick-test')?.addEventListener('click', loadTestData);
-    document.getElementById('quick-calc')?.addEventListener('click', runAdvancedCalculation);
-    document.getElementById('quick-reset')?.addEventListener('click', clearFormData);
-}
-
-// ============================================
-// FINAL INITIALIZATION
-// ============================================
-
-setTimeout(function() {
-    // إضافة لوحة الإجراءات السريعة
-    addQuickActionsPanel();
-    
-    // إرسال إشعار الترحيب
-    showAdvancedNotification(
-        'Enhanced AHP System Ready',
-        'All tables loaded. You can start comparing alternatives using the enhanced interface.',
-        'success',
-        3000
-    );
-    
-    // تحديث النص في الشريط الجانبي
-    const enhancedStatus = document.getElementById('enhanced-status');
-    if (enhancedStatus) {
-        enhancedStatus.innerHTML = `
-            <div style="color: #28a745; font-weight: bold;">
-                ✅ Enhanced system fully loaded
-            </div>
-            <div style="font-size: 11px; color: #666; margin-top: 5px;">
-                All tables ready • Test data loaded • Enhanced features active
-            </div>
-        `;
-    }
-}, 1500);
-
-// ============================================
-// EXPORT FUNCTIONS FOR GLOBAL USE
-// ============================================
-
-window.enhancedAHPTool = {
-    loadTestData: loadTestData,
-    runCalculation: runEnhancedCalculation,
-    runAdvancedCalc: runAdvancedCalculation,
-    clearForm: clearFormData,
-    setAllEqual: setAllComparisonsToEqual,
-    showNotification: showAdvancedNotification,
-    exportResults: exportAsJSON,
-    runSensitivity: performAdvancedSensitivityAnalysis
-};
-
-console.log('✅ All enhanced features integrated successfully');
-
-
-        // ============================================
-// FIX: ALTERNATIVE TABLES GENERATION
-// ============================================
-
-// دالة موحدة لإنشاء جداول البدائل
-function createAlternativeTables() {
-    console.log('📊 Creating alternative comparison tables...');
-    
-    const container = document.getElementById('alternative-comparisons-container');
-    if (!container) {
-        console.error('❌ Container not found');
-        return;
-    }
-    
-    const criteriaCount = getValidCriteriaCount();
-    const itemsCount = getValidItemsCount();
-    
-    console.log(`📈 Criteria: ${criteriaCount}, Alternatives: ${itemsCount}`);
-    
-    if (criteriaCount < 1 || itemsCount < 2) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #95a5a6; background: #f8f9fa; border-radius: 10px; border: 2px dashed #dee2e6;">
-                <div style="font-size: 48px; margin-bottom: 20px;">📋</div>
-                <h3 style="color: #6c757d; margin-bottom: 15px;">Comparison Tables Ready</h3>
-                <p>Enter your criteria and alternatives above to generate comparison tables.</p>
-                <p style="margin-top: 10px; font-size: 14px;">
-                    <strong>Current:</strong> ${criteriaCount} criteria, ${itemsCount} alternatives
-                </p>
-                <div style="margin-top: 20px;">
-                    <button onclick="loadTestData()" style="
-                        padding: 10px 20px;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        border: none;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-weight: bold;
-                    ">
-                        📊 Load Test Data to Get Started
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px;">
+                    <button id="quick-test" class="quick-action-btn" style="background: rgba(255,255,255,0.2);">
+                        <span style="margin-right: 6px;">📊</span> Load Test Data
+                    </button>
+                    <button id="quick-calc" class="quick-action-btn" style="background: rgba(255,255,255,0.2);">
+                        <span style="margin-right: 6px;">🚀</span> Quick Calculate
+                    </button>
+                    <button id="quick-reset" class="quick-action-btn" style="background: rgba(255,255,255,0.2);">
+                        <span style="margin-right: 6px;">🔄</span> Reset Form
                     </button>
                 </div>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = '';
-    
-    for (let c = 0; c < criteriaCount; c++) {
-        const criterionName = document.getElementById(`criteria${c}`).value || `Criterion ${c + 1}`;
-        const criterionId = c;
-        
-        const tableSection = document.createElement('div');
-        tableSection.className = 'criterion-comparison';
-        tableSection.innerHTML = `
-            <div style="
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                border-radius: 10px;
-                padding: 20px;
-                margin-bottom: 25px;
-                border: 1px solid #dee2e6;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            ">
-                <div style="display: flex; align-items: center; margin-bottom: 20px;">
-                    <div style="
-                        background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
+                
+                <div style="font-size: 12px; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+                    <strong>Tip:</strong> Click "Set All Equal" for quick comparison setup
+                </div>
+                
+                <style>
+                    .quick-action-btn {
+                        padding: 10px;
+                        border: none;
+                        border-radius: 6px;
                         color: white;
-                        width: 40px;
-                        height: 40px;
-                        border-radius: 50%;
+                        cursor: pointer;
+                        font-size: 14px;
+                        transition: all 0.3s ease;
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        font-weight: bold;
-                        font-size: 18px;
-                        margin-right: 15px;
-                    ">
-                        ${c + 1}
-                    </div>
-                    <div>
-                        <h3 style="margin: 0; color: #2c3e50; font-size: 20px;">${criterionName}</h3>
-                        <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px;">
-                            Compare alternatives with respect to this criterion
-                        </p>
-                    </div>
-                </div>
-                
-                <div class="comparison-guide" style="
-                    background: #e7f3ff;
-                    padding: 15px;
-                    border-radius: 8px;
-                    margin-bottom: 20px;
-                    border-left: 4px solid #3498db;
-                ">
-                    <h4 style="color: #2c3e50; margin-top: 0; display: flex; align-items: center;">
-                        <span style="margin-right: 8px;">💡</span> How to Compare
-                    </h4>
-                    <p style="margin: 5px 0; font-size: 13px;">
-                        <strong>Question:</strong> "For <strong>${criterionName}</strong>, how much more important is Alternative X compared to Alternative Y?"
-                    </p>
-                    <p style="margin: 5px 0; font-size: 13px;">
-                        <strong>Example:</strong> If "Software A" is 5 times better than "Software B", enter 5
-                    </p>
-                </div>
-                
-                <div style="overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: white;">
-                    <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
-                        <thead>
-                            <tr style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                                <th style="
-                                    padding: 15px;
-                                    text-align: center;
-                                    font-weight: bold;
-                                    color: #2c3e50;
-                                    border-bottom: 2px solid #dee2e6;
-                                    position: sticky;
-                                    left: 0;
-                                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                                    min-width: 150px;
-                                "></th>
-                                ${Array.from({length: itemsCount}, (_, i) => {
-                                    const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
-                                    const displayName = altName.length > 20 ? altName.substring(0, 17) + '...' : altName;
-                                    return `
-                                        <th style="
-                                            padding: 15px;
-                                            text-align: center;
-                                            font-weight: bold;
-                                            color: #2c3e50;
-                                            border-bottom: 2px solid #dee2e6;
-                                            border-left: 1px solid #e0e0e0;
-                                            min-width: 120px;
-                                            position: relative;
-                                        " title="${altName}">
-                                            <div style="font-size: 13px; color: #3498db;">Alt ${i+1}</div>
-                                            <div style="font-weight: bold; font-size: 14px; margin-top: 3px;">${displayName}</div>
-                                        </th>
-                                    `;
-                                }).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${Array.from({length: itemsCount}, (_, i) => {
-                                const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
-                                const displayName = altName.length > 20 ? altName.substring(0, 17) + '...' : altName;
-                                return `
-                                    <tr style="${i === itemsCount - 1 ? '' : 'border-bottom: 1px solid #e0e0e0;'}">
-                                        <th style="
-                                            padding: 15px;
-                                            text-align: center;
-                                            font-weight: bold;
-                                            color: #2c3e50;
-                                            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                                            position: sticky;
-                                            left: 0;
-                                            border-right: 1px solid #e0e0e0;
-                                            min-width: 150px;
-                                        " title="${altName}">
-                                            <div style="font-size: 13px; color: #3498db;">Alt ${i+1}</div>
-                                            <div style="font-weight: bold; font-size: 14px; margin-top: 3px;">${displayName}</div>
-                                        </th>
-                                        ${Array.from({length: itemsCount}, (_, j) => {
-                                            const inputId = `c${criterionId}_item${i}v${j}`;
-                                            
-                                            // الخلايا القطرية (i === j)
-                                            if (i === j) {
-                                                return `
-                                                    <td style="
-                                                        padding: 10px;
-                                                        text-align: center;
-                                                        background: #f8f9fa;
-                                                        border-left: 1px solid #e0e0e0;
-                                                        min-width: 100px;
-                                                    ">
-                                                        <div style="
-                                                            width: 60px;
-                                                            height: 60px;
-                                                            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-                                                            color: white;
-                                                            border-radius: 50%;
-                                                            display: flex;
-                                                            align-items: center;
-                                                            justify-content: center;
-                                                            margin: 0 auto;
-                                                            font-weight: bold;
-                                                            font-size: 18px;
-                                                        ">
-                                                            1
-                                                        </div>
-                                                    </td>
-                                                `;
-                                            }
-                                            // الخلايا فوق القطر (j > i)
-                                            else if (j > i) {
-                                                return `
-                                                    <td style="
-                                                        padding: 10px;
-                                                        text-align: center;
-                                                        background: white;
-                                                        border-left: 1px solid #e0e0e0;
-                                                        position: relative;
-                                                        min-width: 100px;
-                                                    ">
-                                                        <div class="editable-cell" style="position: relative;">
-                                                            <input type="number" 
-                                                                   step="0.1"
-                                                                   min="0.111" 
-                                                                   max="9"
-                                                                   id="${inputId}"
-                                                                   value="1"
-                                                                   style="
-                                                                        width: 70px;
-                                                                        padding: 10px;
-                                                                        border: 2px solid #3498db;
-                                                                        border-radius: 6px;
-                                                                        text-align: center;
-                                                                        font-weight: bold;
-                                                                        font-size: 16px;
-                                                                        background: white;
-                                                                        box-shadow: 0 2px 5px rgba(52, 152, 219, 0.1);
-                                                                        transition: all 0.3s ease;
-                                                                   "
-                                                                   oninput="handleAlternativeInput(this, ${criterionId}, ${i}, ${j})"
-                                                                   onfocus="showAltHelp(this, ${criterionId}, ${i}, ${j})"
-                                                                   onblur="hideAltHelp(this)">
-                                                            <div class="quick-buttons" style="
-                                                                display: flex;
-                                                                gap: 3px;
-                                                                margin-top: 8px;
-                                                                justify-content: center;
-                                                                flex-wrap: wrap;
-                                                            ">
-                                                                ${[1, 3, 5, 7, 9].map(val => `
-                                                                    <button type="button" 
-                                                                            class="quick-btn" 
-                                                                            onclick="setQuickValue(this, ${criterionId}, ${i}, ${j}, ${val})"
-                                                                            style="
-                                                                                padding: 4px 8px;
-                                                                                font-size: 12px;
-                                                                                border: 1px solid #dee2e6;
-                                                                                border-radius: 4px;
-                                                                                background: white;
-                                                                                cursor: pointer;
-                                                                                min-width: 30px;
-                                                                                transition: all 0.2s ease;
-                                                                            "
-                                                                            onmouseover="this.style.background='#3498db';this.style.color='white';this.style.borderColor='#3498db'"
-                                                                            onmouseout="this.style.background='white';this.style.color='#2c3e50';this.style.borderColor='#dee2e6'">
-                                                                        ${val}
-                                                                    </button>
-                                                                `).join('')}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                `;
-                                            }
-                                            // الخلايا تحت القطر (j < i) - قيم متبادلة
-                                            else {
-                                                return `
-                                                    <td style="
-                                                        padding: 10px;
-                                                        text-align: center;
-                                                        background: #f5f7fa;
-                                                        border-left: 1px solid #e0e0e0;
-                                                        min-width: 100px;
-                                                    ">
-                                                        <input type="number" 
-                                                               id="${inputId}"
-                                                               value="1"
-                                                               readonly
-                                                               style="
-                                                                    width: 70px;
-                                                                    padding: 10px;
-                                                                    border: 1px solid #dee2e6;
-                                                                    border-radius: 6px;
-                                                                    text-align: center;
-                                                                    background: #f8f9fa;
-                                                                    color: #6c757d;
-                                                                    font-weight: bold;
-                                                                    font-size: 16px;
-                                                                    cursor: not-allowed;
-                                                               ">
-                                                    </td>
-                                                `;
-                                            }
-                                        }).join('')}
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div style="
-                    margin-top: 15px;
-                    padding: 12px;
-                    background: #f8f9fa;
-                    border-radius: 6px;
-                    border-left: 3px solid #3498db;
-                ">
-                    <div style="font-size: 13px; color: #666; display: flex; align-items: center;">
-                        <span style="margin-right: 8px;">📝</span>
-                        <div>
-                            <strong>Instructions:</strong> Enter values 1-9 where:
-                            <ul style="margin: 5px 0 0 15px; padding: 0;">
-                                <li>1 = Equal importance</li>
-                                <li>9 = Extreme importance</li>
-                                <li>Reciprocal values calculated automatically</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                ${itemsCount > 0 ? `
-                <div style="margin-top: 15px; text-align: center;">
-                    <button onclick="setAllEqualForCriterion(${criterionId}, ${itemsCount})" 
-                            style="
-                                padding: 8px 16px;
-                                background: #f8f9fa;
-                                border: 1px solid #dee2e6;
-                                border-radius: 4px;
-                                cursor: pointer;
-                                font-size: 13px;
-                                color: #6c757d;
-                                transition: all 0.2s ease;
-                            "
-                            onmouseover="this.style.background='#e9ecef';this.style.color='#495057'"
-                            onmouseout="this.style.background='#f8f9fa';this.style.color='#6c757d'">
-                        ⚖️ Set All Equal for This Criterion
-                    </button>
-                </div>
-                ` : ''}
-            </div>
-        `;
+                    }
+                    
+                    .quick-action-btn:hover {
+                        background: rgba(255,255,255,0.3) !important;
+                        transform: translateY(-2px);
+                        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+                    }
+                </style>
+            `;
+            
+            sidebar.appendChild(panel);
+            
+            document.getElementById('quick-test')?.addEventListener('click', loadTestData);
+            document.getElementById('quick-calc')?.addEventListener('click', runEnhancedCalculation);
+            document.getElementById('quick-reset')?.addEventListener('click', clearFormData);
+        }
         
-        container.appendChild(tableSection);
-    }
-    
-    // إضافة تذييل
-    const footer = document.createElement('div');
-    footer.style.cssText = `
-        text-align: center;
-        padding: 20px;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 10px;
-        margin-top: 20px;
-        border: 1px solid #dee2e6;
-    `;
-    footer.innerHTML = `
-        <div style="color: #6c757d; font-size: 14px;">
-            <strong>${criteriaCount}</strong> criterion comparison tables generated for <strong>${itemsCount}</strong> alternatives
-        </div>
-        <div style="margin-top: 10px; font-size: 12px; color: #95a5a6;">
-            Click the quick buttons (1, 3, 5, 7, 9) or enter values manually
-        </div>
-    `;
-    container.appendChild(footer);
-    
-    // تحديث جميع القيم المتبادلة
-    updateAllAlternativeReciprocalValues(criteriaCount, itemsCount);
-    
-    console.log('✅ Alternative tables created successfully');
-}
-
-// جعل الدوال متاحة عالمياً
-window.handleAlternativeInput = function(input, criterionId, i, j) {
-    const value = parseFloat(input.value);
-    
-    // التحقق من المدى
-    if (isNaN(value) || value < 0.111 || value > 9) {
-        input.style.borderColor = '#e74c3c';
-        input.style.background = '#fff5f5';
-        input.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.1)';
-        return;
-    }
-    
-    // نجاح التحقق
-    input.style.borderColor = '#2ecc71';
-    input.style.background = '#f0fff4';
-    input.style.boxShadow = '0 0 0 3px rgba(46, 204, 113, 0.1)';
-    
-    // تحديث القيمة المتبادلة
-    const reciprocalInput = document.getElementById(`c${criterionId}_item${j}v${i}`);
-    if (reciprocalInput && value > 0) {
-        reciprocalInput.value = (1 / value).toFixed(3);
-        reciprocalInput.style.borderColor = '#2ecc71';
-        reciprocalInput.style.background = '#f0fff4';
-    }
-};
-
-window.setQuickValue = function(button, criterionId, i, j, value) {
-    const input = document.getElementById(`c${criterionId}_item${i}v${j}`);
-    if (input) {
-        input.value = value;
-        window.handleAlternativeInput(input, criterionId, i, j);
+        // ============================================
+        // FINAL INITIALIZATION
+        // ============================================
         
-        // تأثير مؤقت على الزر
-        button.style.background = '#2ecc71';
-        button.style.color = 'white';
-        button.style.borderColor = '#2ecc71';
-        setTimeout(() => {
-            button.style.background = '#3498db';
-            button.style.color = 'white';
-            button.style.borderColor = '#3498db';
-        }, 300);
-    }
-};
-
-window.showAltHelp = function(input, criterionId, i, j) {
-    const criterion = document.getElementById(`criteria${criterionId}`).value || `Criterion ${criterionId+1}`;
-    const altI = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
-    const altJ = document.getElementById(`item${j}`).value || `Alternative ${j+1}`;
-    
-    // إنشاء تلميحة
-    const tooltip = document.createElement('div');
-    tooltip.className = 'alt-comparison-help';
-    tooltip.textContent = `For ${criterion}: ${altI} vs ${altJ}`;
-    tooltip.style.cssText = `
-        position: absolute;
-        top: -35px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #2c3e50;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        white-space: nowrap;
-        z-index: 1000;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    `;
-    
-    input.parentNode.style.position = 'relative';
-    input.parentNode.appendChild(tooltip);
-};
-
-window.hideAltHelp = function(input) {
-    const tooltip = input.parentNode.querySelector('.alt-comparison-help');
-    if (tooltip) {
-        tooltip.remove();
-    }
-};
-
-window.setAllEqualForCriterion = function(criterionId, itemsCount) {
-    for (let i = 0; i < itemsCount; i++) {
-        for (let j = i + 1; j < itemsCount; j++) {
-            const input = document.getElementById(`c${criterionId}_item${i}v${j}`);
-            if (input) {
-                input.value = '1';
-                window.handleAlternativeInput(input, criterionId, i, j);
+        setTimeout(function() {
+            addQuickActionsPanel();
+            
+            showAdvancedNotification(
+                'Enhanced AHP System Ready',
+                'All tables loaded. You can start comparing alternatives using the enhanced interface.',
+                'success',
+                3000
+            );
+            
+            const enhancedStatus = document.getElementById('enhanced-status');
+            if (enhancedStatus) {
+                enhancedStatus.innerHTML = `
+                    <div style="color: #28a745; font-weight: bold;">
+                        ✅ Enhanced system fully loaded
+                    </div>
+                    <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                        All tables ready • Test data loaded • Enhanced features active
+                    </div>
+                `;
             }
-        }
-    }
-    
-    alert(`All comparisons for this criterion set to equal importance (value = 1)`);
-};
-
-// ============================================
-// AUTO-GENERATION ON INPUT CHANGE
-// ============================================
-
-// استبدال دالة setupAlternativePairwiseTables القديمة
-window.setupAlternativePairwiseTables = createAlternativeTables;
-
-// تحديث الجداول عند أي تغيير
-document.addEventListener('input', function(e) {
-    if (e.target && 
-        (e.target.id.startsWith('criteria') || e.target.id.startsWith('item')) &&
-        !e.target.id.includes('v')) {
+        }, 1500);
         
-        setTimeout(() => {
-            console.log('🔄 Updating tables due to input change');
-            createAlternativeTables();
-        }, 500);
-    }
-});
-
-// ============================================
-// INITIAL GENERATION
-// ============================================
-
-// توليد الجداول عند تحميل الصفحة
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        createAlternativeTables();
-    }, 1000);
-});
-
-// زر لتوليد الجداول يدوياً
-function generateTablesNow() {
-    console.log('🔧 Manually generating tables...');
-    createAlternativeTables();
-    
-    // إشعار
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
-        z-index: 9999;
-        animation: slideInUp 0.3s ease;
-    `;
-    notification.innerHTML = '✅ Comparison tables generated successfully!';
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOutDown 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// إضافة زر توليد يدوي في واجهة المستخدم
-setTimeout(() => {
-    const button = document.createElement('button');
-    button.id = 'manual-generate-btn';
-    button.innerHTML = '🔄 Generate Tables';
-    button.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        // padding: 12px 20px;
-        padding: 9px 15px; /* تم تصغير الحشوة */
-        background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
-        color: white;
-        border: none;
-        // border-radius: 8px;
-        border-radius: 7px; /* تصغير بسيط للحواف */
-        cursor: pointer;
-        // font-weight: bold;
-        font-size: 12px; /* تصغير الخط */
-        // box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-        box-shadow: 0 3px 10px rgba(52, 152, 219, 0.27); /* تصغير الظل */
-        z-index: 9998;
-        transition: all 0.3s ease;
-    `;
-    button.onmouseover = function() {
-        this.style.transform = 'translateY(-1px)';
-        // this.style.boxShadow = '0 6px 20px rgba(52, 152, 219, 0.4)';
-        this.style.boxShadow = '0 4px 15px rgba(52, 152, 219, 0.35)';
-    };
-    button.onmouseout = function() {
-        this.style.transform = 'translateY(0)';
-        // this.style.boxShadow = '0 4px 15px rgba(52, 152, 219, 0.3)';
-        this.style.boxShadow = '0 3px 10px rgba(52, 152, 219, 0.27)';
-    };
-    button.onclick = generateTablesNow;
-    
-    document.body.appendChild(button);
-}, 2000);
-
-// ============================================
-// STYLES FOR ALTERNATIVE TABLES
-// ============================================
-
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInUp {
-        from { transform: translateY(100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-    
-    @keyframes slideOutDown {
-        from { transform: translateY(0); opacity: 1; }
-        to { transform: translateY(100%); opacity: 0; }
-    }
-    
-    .criterion-comparison {
-        animation: fadeIn 0.5s ease;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* تحسين التمرير */
-    .comparison-table-container {
-        max-height: 600px;
-        overflow-y: auto;
-    }
-    
-    /* تحسين تجربة المستخدم على الأجهزة المحمولة */
-    @media (max-width: 768px) {
-        .criterion-comparison {
-            padding: 10px;
-        }
+        // ============================================
+        // EXPORT FUNCTIONS FOR GLOBAL USE
+        // ============================================
         
-        .comparison-guide {
-            padding: 10px !important;
-        }
+        window.enhancedAHPTool = {
+            loadTestData: loadTestData,
+            runCalculation: runEnhancedCalculation,
+            clearForm: clearFormData,
+            setAllEqual: setAllComparisonsToEqual,
+            showNotification: showAdvancedNotification,
+            exportResults: exportAsJSON,
+            runSensitivity: performSensitivityAnalysis,
+            generateTables: createAlternativeTables
+        };
         
-        .quick-buttons button {
-            min-width: 25px !important;
-            padding: 3px 6px !important;
-            font-size: 11px !important;
-        }
-        
-        input[type="number"] {
-            width: 60px !important;
-            padding: 8px !important;
-        }
-    }
-`;
-document.head.appendChild(style);
-
-console.log('✅ Alternative tables fix applied');
+        console.log('✅ All enhanced features integrated successfully');
     </script>
 </body>
 </html>
