@@ -951,25 +951,6 @@
                 `;
                 return;
             }
-
-            // BUG FIX (Phase 4.6, root cause of "results not reflecting real
-            // input"): this function used to unconditionally wipe and
-            // rebuild the entire comparison table — including every input
-            // value the user had already entered — every time it was
-            // called. It is called again from runEnhancedCalculation()
-            // right before the matrix values are read for calculation,
-            // which reset every comparison back to its "1" default just
-            // before computing, regardless of what the user had typed.
-            // This bug is pre-existing (confirmed via git diff against the
-            // Phase 3 baseline — unrelated to the modular refactor) and is
-            // fixed here with a minimal idempotency guard: if the table
-            // already exists for the same criteria/alternative count,
-            // skip the destructive rebuild and preserve existing values.
-            // The AHP engine, HTML structure, and CSS are untouched.
-            if (container.dataset.builtSignature === buildPairwiseTableSignature(criteriaCount, itemsCount) &&
-                container.children.length > 0) {
-                return;
-            }
             
             container.innerHTML = '';
             
@@ -1068,24 +1049,6 @@
             }
             
             updateAllAlternativeReciprocalValues(criteriaCount, itemsCount);
-
-            container.dataset.builtSignature = buildPairwiseTableSignature(criteriaCount, itemsCount);
-        }
-
-        // Helper for the idempotency guard above: a signature combining
-        // criteria/alternative NAMES (not just counts), so renaming a
-        // criterion or alternative still triggers a correct rebuild,
-        // while re-invoking this function with unchanged names (e.g. from
-        // runEnhancedCalculation right before reading the matrix) does not
-        // destroy the user's already-entered comparison values.
-        function buildPairwiseTableSignature(criteriaCount, itemsCount) {
-            const criteriaNames = Array.from({ length: criteriaCount }, (_, c) =>
-                (document.getElementById(`criteria${c}`)?.value || '')
-            );
-            const itemNames = Array.from({ length: itemsCount }, (_, i) =>
-                (document.getElementById(`item${i}`)?.value || '')
-            );
-            return JSON.stringify({ criteriaNames, itemNames });
         }
         
         // جعل الدوال متاحة عالمياً للاستخدام في HTML
