@@ -38,12 +38,14 @@
         import { calculatePriorityVector, calculateConsistencyRatio, calculateOverallConsistency } from './js/core/ahp-engine.js';
         import { calculateEnhancedAHP } from './js/frameworks/amseshi/amseshi-framework.js';
         import { rateConsistencyConfidence, explainConsistency } from './js/frameworks/amseshi/interpretation.js';
+        import { runAssessment } from './js/application/assessment-service.js';
         window.calculatePriorityVector = calculatePriorityVector;
         window.calculateConsistencyRatio = calculateConsistencyRatio;
         window.calculateOverallConsistency = calculateOverallConsistency;
         window.calculateEnhancedAHP = calculateEnhancedAHP;
         window.rateConsistencyConfidence = rateConsistencyConfidence;
         window.explainConsistency = explainConsistency;
+        window.runAssessment = runAssessment;
     </script>
     
     <style>
@@ -1211,7 +1213,7 @@
             document.getElementById('export-pdf')?.addEventListener('click', exportAsPDF);
             
             document.getElementById('run-sensitivity')?.addEventListener('click', function() {
-                const results = window.lastCalculationResults;
+                const results = window.lastAssessment && window.lastAssessment.result;
                 if (results) {
                     performSensitivityAnalysis(results);
                 }
@@ -1586,7 +1588,7 @@
                 }
             });
             
-            window.lastCalculationResults = null;
+            window.lastAssessment = null;
         }
         
         // ============================================
@@ -1642,7 +1644,11 @@
                 
                 const results = await performCalculation(validation.data);
                 
-                window.lastCalculationResults = results;
+                // UI Integration Layer migration (Phase 4.6), Step 4:
+                // window.lastCalculationResults removed. window.lastAssessment
+                // (set inside performCalculation) is now the single source
+                // of truth; `results` here is simply assessment.result,
+                // kept as a local variable for the display calls below.
                 
                 displayEnhancedResults(results);
                 
@@ -1768,10 +1774,33 @@
             try {
                 const criteriaMatrix = createCriteriaMatrix(data.criteria.length);
                 const alternativeMatrices = createAlternativeMatrices(data.criteria.length, data.items.length);
-                
-                const results = calculateEnhancedAHP(data.items, data.criteria, alternativeMatrices, criteriaMatrix);
-                
-                return results;
+
+                // UI Integration Layer migration (Phase 4.6), Step 2: route
+                // through assessmentService.runAssessment() instead of
+                // calling calculateEnhancedAHP directly. runAssessment
+                // requires an institution name, which the UI does not yet
+                // collect (no Institution Information step exists yet) —
+                // the goal text is used as a placeholder until that UI
+                // step is built. The Assessment Object is stashed on
+                // window.lastAssessment for future steps (charts,
+                // reporting), while this function's RETURN VALUE stays
+                // byte-for-byte identical in shape to before
+                // (assessment.result === the old raw `results` object),
+                // so no display function needs to change in this step.
+                const goalInput = document.getElementById('goal');
+                const goal = (goalInput && goalInput.value) ? goalInput.value : 'AMSESHI Assessment';
+
+                const assessment = window.runAssessment({
+                    institution: { name: goal }, // TODO: replace with a real Institution Information step
+                    hierarchy: { goal, criteria: data.criteria, alternatives: data.items },
+                    projectName: goal,
+                    criteriaMatrix,
+                    alternativeMatrices,
+                });
+
+                window.lastAssessment = assessment;
+
+                return assessment.result;
                 
             } catch (error) {
                 console.error('❌ Calculation error:', error);
@@ -1779,7 +1808,31 @@
             }
         }
         
-        function createCriteriaMatrix(criteriaCount) {
+        // UI Integration Layer migration (Phase 4.6), Step 1:
+        // split DOM-reading from matrix-building logic. The DOM-reading
+        // half now lives in collectCriteriaComparisonValues(); the pure
+        // matrix-building logic (identical to before) lives in
+        // buildCriteriaMatrix(). createCriteriaMatrix() is kept as a
+        // thin backward-compatible wrapper so every existing call site
+        // is unchanged. See test/verify-matrix-split.mjs for the
+        // equivalence proof against the pre-split behavior.
+
+        function collectCriteriaComparisonValues(criteriaCount) {
+            const overrides = {};
+            for (let i = 0; i < criteriaCount; i++) {
+                for (let j = 0; j < criteriaCount; j++) {
+                    if (i !== j) {
+                        const input = document.getElementById(`criteria${i}v${j}`);
+                        if (input) {
+                            overrides[`criteria${i}v${j}`] = input.value;
+                        }
+                    }
+                }
+            }
+            return overrides;
+        }
+
+        function buildCriteriaMatrix(criteriaCount, overrides) {
             const matrix = [];
             for (let i = 0; i < criteriaCount; i++) {
                 matrix[i] = [];
@@ -1787,9 +1840,9 @@
                     if (i === j) {
                         matrix[i][j] = 1;
                     } else {
-                        const input = document.getElementById(`criteria${i}v${j}`);
-                        if (input && input.value && !isNaN(parseFloat(input.value))) {
-                            const value = parseFloat(input.value);
+                        const raw = overrides[`criteria${i}v${j}`];
+                        if (raw !== undefined && raw !== '' && !isNaN(parseFloat(raw))) {
+                            const value = parseFloat(raw);
                             matrix[i][j] = isNaN(value) ? 1 : Math.max(0.111, Math.min(9, value));
                         } else {
                             matrix[i][j] = 1;
@@ -1798,6 +1851,11 @@
                 }
             }
             return matrix;
+        }
+
+        function createCriteriaMatrix(criteriaCount) {
+            const overrides = collectCriteriaComparisonValues(criteriaCount);
+            return buildCriteriaMatrix(criteriaCount, overrides);
         }
         
         function createAlternativeMatrices(criteriaCount, itemsCount) {
@@ -1899,23 +1957,32 @@
                 </p>
             `;
 
-            // AMSESHI Interpretation Layer: assessment confidence card.
-            // Purely additive — computed from the same overallCR already
-            // shown above, via js/frameworks/amseshi/interpretation.js
-            // (exposed as window.rateConsistencyConfidence /
-            // window.explainConsistency in <head>). Does not alter any
-            // existing display or calculation.
-            if (typeof window.rateConsistencyConfidence === 'function') {
-                const confidence = window.rateConsistencyConfidence(overallCR);
-                const explanation = window.explainConsistency(overallCR, confidence);
-                const stars = '★'.repeat(confidence.stars) + '☆'.repeat(5 - confidence.stars);
+            // UI Integration Layer migration (Phase 4.6), Step 3: read
+            // confidence from window.lastAssessment.interpretation (the
+            // Assessment Object — single source of truth, set by
+            // performCalculation via assessmentService.runAssessment)
+            // instead of recomputing it here. Falls back to a direct
+            // recompute only if no Assessment Object is available yet
+            // (e.g. this function called out of the normal flow),
+            // preserving the exact Phase 4.5 behavior in that case.
+            const liveConfidence = (window.lastAssessment && window.lastAssessment.interpretation)
+                ? window.lastAssessment.interpretation.confidence
+                : (typeof window.rateConsistencyConfidence === 'function'
+                    ? (() => {
+                        const c = window.rateConsistencyConfidence(overallCR);
+                        return { ...c, explanation: window.explainConsistency(overallCR, c) };
+                      })()
+                    : null);
+
+            if (liveConfidence) {
+                const stars = '★'.repeat(liveConfidence.stars) + '☆'.repeat(5 - liveConfidence.stars);
                 consistencyHTML += `
                     <div style="margin: 15px 0; padding: 15px; background: #f4f2ff; border-radius: 5px; border: 1px solid #d9d3f7;">
                         <strong>AMSESHI Assessment Confidence:</strong>
                         <div style="margin-top: 8px; font-size: 20px; letter-spacing: 2px; color: #5b4bc4;">${stars}
-                            <span style="font-size: 14px; letter-spacing: normal; color: #333; margin-left: 8px;">${confidence.label}</span>
+                            <span style="font-size: 14px; letter-spacing: normal; color: #333; margin-left: 8px;">${liveConfidence.label}</span>
                         </div>
-                        <p style="font-size: 13px; color: #666; margin-top: 8px;">${explanation}</p>
+                        <p style="font-size: 13px; color: #666; margin-top: 8px;">${liveConfidence.explanation}</p>
                     </div>
                 `;
             }
