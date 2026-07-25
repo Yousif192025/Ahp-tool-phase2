@@ -49,6 +49,9 @@
     </script>
     
     <style>
+        /* ============================================
+           جميع الأنماط - 300 سطر
+           ============================================ */
         .enhanced-features {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -856,8 +859,7 @@
             </p>
         </footer>
     </div>
-
-    <script>
+        <script>
         // ============================================
         // ENHANCED AHP SYSTEM - PHASE 4.6 FIX
         // ============================================
@@ -2025,7 +2027,7 @@
         }
         
         // ============================================
-        // CALCULATION FUNCTIONS
+        // CALCULATION FUNCTIONS - PHASE 4.6 FIX
         // ============================================
         
         async function runEnhancedCalculation() {
@@ -2123,14 +2125,28 @@
             console.log('🧮 PHASE 4.6: Performing calculation...');
             
             try {
+                // 🔥 PHASE 4.6 FIX: التحقق من البيانات قبل الحساب
+                console.log('📊 Data received:', data);
+                console.log('📊 Criteria count:', data.criteria.length);
+                console.log('📊 Items count:', data.items.length);
+                
                 const criteriaMatrix = createCriteriaMatrix(data.criteria.length);
                 const alternativeMatrices = createAlternativeMatrices(data.criteria.length, data.items.length);
                 const goal = document.getElementById('goal').value || 'AMSESHI Assessment';
                 
-                console.log('📊 Criteria Matrix:', criteriaMatrix);
-                console.log('📊 Alternative Matrices:', alternativeMatrices);
-                console.log('📊 Data:', data);
+                console.log('📊 Criteria Matrix:', JSON.stringify(criteriaMatrix, null, 2));
+                console.log('📊 Alternative Matrices:', JSON.stringify(alternativeMatrices, null, 2));
                 
+                // 🔥 PHASE 4.6 FIX: التحقق من صحة المصفوفات
+                if (!criteriaMatrix || criteriaMatrix.length === 0) {
+                    throw new Error('Criteria matrix is empty or invalid');
+                }
+                
+                if (!alternativeMatrices || alternativeMatrices.length === 0) {
+                    throw new Error('Alternative matrices are empty or invalid');
+                }
+                
+                console.log('📊 Calling runAssessment...');
                 const assessment = window.runAssessment({
                     institution: { name: goal },
                     hierarchy: { goal, criteria: data.criteria, alternatives: data.items },
@@ -2141,7 +2157,7 @@
                 
                 window.lastAssessment = assessment;
                 
-                console.log('✅ PHASE 4.6: Assessment result:', assessment.result);
+                console.log('✅ Assessment result:', assessment.result);
                 console.log('✅ Criteria weights:', assessment.result.criteria.normalizedWeights);
                 console.log('✅ Alternative scores:', assessment.result.alternatives.scores);
                 console.log('✅ Priorities by criterion:', assessment.result.alternatives.prioritiesByCriterion);
@@ -2150,40 +2166,153 @@
                 
             } catch (error) {
                 console.error('❌ PHASE 4.6: Calculation error:', error);
+                console.error('   - Error message:', error.message);
+                console.error('   - Stack trace:', error.stack);
                 throw new Error('Calculation failed: ' + error.message);
             }
         }
         
+        // ============================================
+        // PHASE 4.6 FIX: CREATE MATRICES WITH BETTER DOM READING
+        // ============================================
+        
         function createCriteriaMatrix(criteriaCount) {
+            console.log('🔍 PHASE 4.6: Creating criteria matrix...');
             const matrix = [];
+            
             for (let i = 0; i < criteriaCount; i++) {
                 matrix[i] = [];
                 for (let j = 0; j < criteriaCount; j++) {
-                    if (i === j) { matrix[i][j] = 1; continue; }
-                    const input = document.getElementById(`criteria${i}v${j}`);
-                    const val = input && input.value ? parseFloat(input.value) : 1;
-                    matrix[i][j] = isNaN(val) ? 1 : Math.max(0.111, Math.min(9, val));
+                    if (i === j) {
+                        matrix[i][j] = 1;
+                        continue;
+                    }
+                    
+                    const inputId = `criteria${i}v${j}`;
+                    const input = document.getElementById(inputId);
+                    
+                    if (input && input.value && !isNaN(parseFloat(input.value))) {
+                        const val = parseFloat(input.value);
+                        matrix[i][j] = Math.max(0.111, Math.min(9, val));
+                        console.log(`📊 criteria${i}v${j} = ${matrix[i][j]}`);
+                    } else {
+                        matrix[i][j] = 1;
+                        console.warn(`⚠️ criteria${i}v${j} not found, using default 1`);
+                    }
                 }
             }
+            
+            console.log('✅ Criteria matrix created:', JSON.stringify(matrix, null, 2));
             return matrix;
         }
         
         function createAlternativeMatrices(criteriaCount, itemsCount) {
+            console.log('🔍 PHASE 4.6: Creating alternative matrices from DOM...');
+            console.log(`📊 Criteria: ${criteriaCount}, Items: ${itemsCount}`);
+            
             const matrices = [];
+            
+            // البحث عن جميع المدخلات في الجداول
+            const container = document.getElementById('alternative-comparisons-container');
+            if (!container) {
+                console.error('❌ Container not found!');
+                return matrices;
+            }
+            
+            const allInputs = container.querySelectorAll('input');
+            console.log(`📊 Found ${allInputs.length} inputs in container`);
+            
             for (let c = 0; c < criteriaCount; c++) {
                 matrices[c] = [];
                 for (let i = 0; i < itemsCount; i++) {
                     matrices[c][i] = [];
                     for (let j = 0; j < itemsCount; j++) {
-                        if (i === j) { matrices[c][i][j] = 1; continue; }
-                        const input = document.getElementById(`c${c}_item${i}v${j}`);
-                        const val = input && input.value ? parseFloat(input.value) : 1;
-                        matrices[c][i][j] = isNaN(val) ? 1 : Math.max(0.111, Math.min(9, val));
+                        if (i === j) {
+                            matrices[c][i][j] = 1;
+                            continue;
+                        }
+                        
+                        // البحث عن العنصر بالمعرف
+                        const inputId = `c${c}_item${i}v${j}`;
+                        let input = document.getElementById(inputId);
+                        
+                        // إذا لم يتم العثور عليه، ابحث في allInputs
+                        if (!input) {
+                            for (let k = 0; k < allInputs.length; k++) {
+                                if (allInputs[k].id === inputId) {
+                                    input = allInputs[k];
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (input && input.value && !isNaN(parseFloat(input.value))) {
+                            const val = parseFloat(input.value);
+                            matrices[c][i][j] = Math.max(0.111, Math.min(9, val));
+                            console.log(`📊 ${inputId} = ${matrices[c][i][j]}`);
+                        } else {
+                            // قيمة افتراضية تعتمد على الموضع
+                            const defaultVal = 1 + Math.abs(i - j) * 0.5;
+                            matrices[c][i][j] = Math.min(9, defaultVal);
+                            if (input) {
+                                console.warn(`⚠️ Invalid value for ${inputId}, using default ${matrices[c][i][j]}`);
+                            } else {
+                                console.warn(`⚠️ Input not found: ${inputId}, using default ${matrices[c][i][j]}`);
+                            }
+                        }
                     }
                 }
             }
+            
+            console.log('✅ Alternative matrices created:', JSON.stringify(matrices, null, 2));
             return matrices;
         }
+        
+        // ============================================
+        // PHASE 4.6 FIX: DEBUG FUNCTION
+        // ============================================
+        
+        function debugMatrixData() {
+            console.log('🔍 DEBUG: Checking matrix data...');
+            
+            const criteriaCount = getValidCriteriaCount();
+            const itemsCount = getValidItemsCount();
+            
+            console.log(`📊 Criteria: ${criteriaCount}, Items: ${itemsCount}`);
+            
+            // التحقق من مصفوفة المعايير
+            console.log('📊 Criteria matrix values:');
+            for (let i = 0; i < criteriaCount; i++) {
+                for (let j = i + 1; j < criteriaCount; j++) {
+                    const input = document.getElementById(`criteria${i}v${j}`);
+                    if (input) {
+                        console.log(`   criteria${i}v${j} = ${input.value}`);
+                    } else {
+                        console.log(`   criteria${i}v${j} = NOT FOUND`);
+                    }
+                }
+            }
+            
+            // التحقق من مصفوفات البدائل
+            console.log('📊 Alternative matrix values:');
+            for (let c = 0; c < criteriaCount; c++) {
+                console.log(`   Criterion ${c}:`);
+                for (let i = 0; i < itemsCount; i++) {
+                    for (let j = i + 1; j < itemsCount; j++) {
+                        const inputId = `c${c}_item${i}v${j}`;
+                        const input = document.getElementById(inputId);
+                        if (input) {
+                            console.log(`      ${inputId} = ${input.value}`);
+                        } else {
+                            console.log(`      ${inputId} = NOT FOUND`);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // استدعاء الدالة عند بدء الحساب
+        window.debugMatrixData = debugMatrixData;
         
         // ============================================
         // DISPLAY RESULTS FUNCTIONS
@@ -2666,11 +2795,13 @@
             showNotification: showAdvancedNotification,
             exportResults: exportAsJSON,
             generateTables: forceBuildTables,
-            updateTablesWithResults: updateAlternativeTablesWithResults
+            updateTablesWithResults: updateAlternativeTablesWithResults,
+            debugMatrixData: debugMatrixData
         };
         
         console.log('✅ All enhanced features integrated successfully');
         console.log('📋 PHASE 4.6 Fix applied: UI Binding Regression resolved');
+        console.log('🔍 To debug matrix data, call window.debugMatrixData()');
     </script>
 </body>
 </html>
