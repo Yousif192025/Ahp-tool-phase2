@@ -1512,7 +1512,20 @@
                     throw new Error(validation.message);
                 }
                 
-                setupAlternativePairwiseTables();
+                // ROOT CAUSE FIX (confirmed via real-browser trace, not
+                // assumption): this call used to rebuild the alternative
+                // comparison tables from scratch RIGHT BEFORE reading their
+                // values, wiping any value the user had just entered back
+                // to its "1" default. The tables are already correctly
+                // built and kept in sync by the input-change listeners
+                // attached during setupEventListeners() and by
+                // ensureTestDataLoaded()/refreshAllTables() — rebuilding
+                // them again here served no purpose and actively
+                // discarded user input immediately before it was read for
+                // calculation. See docs/research-decisions/
+                // alternative-matrix-reset-fix.md for the full trace
+                // evidence. setupAlternativePairwiseTables() itself and
+                // its other 7 call sites are completely unchanged.
                 
                 const altValidation = validateAlternativeComparisons();
                 if (!altValidation.valid) {
