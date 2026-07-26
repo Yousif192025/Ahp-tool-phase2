@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -935,121 +934,13 @@
             }
         }
         
-        function setupAlternativePairwiseTables() {
-            const criteriaCount = getValidCriteriaCount();
-            const itemsCount = getValidItemsCount();
-            
-            const container = document.getElementById('alternative-comparisons-container');
-            if (!container) return;
-            
-            if (criteriaCount < 2 || itemsCount < 2) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #95a5a6;">
-                        <p>Please enter at least 2 criteria and 2 alternatives to generate comparison tables.</p>
-                        <p>Current: ${criteriaCount} criteria, ${itemsCount} alternatives</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            container.innerHTML = '';
-            
-            for (let c = 0; c < criteriaCount; c++) {
-                const criterionName = document.getElementById(`criteria${c}`).value || `Criterion ${c + 1}`;
-                const criterionId = c;
-                
-                const tableSection = document.createElement('div');
-                tableSection.className = 'criterion-comparison';
-                tableSection.innerHTML = `
-                    <h3>${criterionName}</h3>
-                    <p>Compare alternatives with respect to: <strong>${criterionName}</strong></p>
-                    
-                    <div class="comparison-guide" style="margin-bottom: 20px;">
-                        <h4>💡 Tips for comparing alternatives:</h4>
-                        <p style="margin: 5px 0; font-size: 13px;">
-                            • <strong>Question to ask:</strong> "For ${criterionName}, how much more important is Alternative X compared to Alternative Y?"
-                        </p>
-                        <p style="margin: 5px 0; font-size: 13px;">
-                            • <strong>Example:</strong> If "Software A" is 5 times better than "Software B" in terms of ${criterionName}, enter 5
-                        </p>
-                    </div>
-                    
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    ${Array.from({length: itemsCount}, (_, i) => {
-                                        const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
-                                        return `<th title="${altName}">${altName.length > 15 ? altName.substring(0, 12) + '...' : altName}</th>`;
-                                    }).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${Array.from({length: itemsCount}, (_, i) => {
-                                    const altName = document.getElementById(`item${i}`).value || `Alternative ${i+1}`;
-                                    return `
-                                        <tr>
-                                            <th title="${altName}">${altName.length > 15 ? altName.substring(0, 12) + '...' : altName}</th>
-                                            ${Array.from({length: itemsCount}, (_, j) => {
-                                                const inputId = `c${criterionId}_item${i}v${j}`;
-                                                if (i === j) {
-                                                    return `
-                                                        <td class="editable-cell">
-                                                            <input type="number" 
-                                                                   step="0.1"
-                                                                   min="0.111" 
-                                                                   max="9"
-                                                                   id="${inputId}"
-                                                                   value="1"
-                                                                   readonly
-                                                                   style="background:#f5f5f5">
-                                                        </td>
-                                                    `;
-                                                } else if (j > i) {
-                                                    return `
-                                                        <td class="editable-cell">
-                                                            <input type="number" 
-                                                                   step="0.1"
-                                                                   min="0.111" 
-                                                                   max="9"
-                                                                   id="${inputId}"
-                                                                   value="1"
-                                                                   oninput="validateAlternativeInput(this); updateAlternativeReciprocal(${criterionId}, ${i}, ${j}, this.value)"
-                                                                   onfocus="showAlternativeComparisonHelp(this, ${criterionId}, ${i}, ${j})"
-                                                                   onblur="hideAlternativeComparisonHelp(this)">
-                                                        </td>
-                                                    `;
-                                                } else {
-                                                    return `
-                                                        <td class="editable-cell">
-                                                            <input type="number" 
-                                                                   step="0.1"
-                                                                   id="${inputId}"
-                                                                   value="1"
-                                                                   readonly
-                                                                   style="background:#f5f5f5">
-                                                        </td>
-                                                    `;
-                                                }
-                                            }).join('')}
-                                        </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                        <p><strong>Instructions:</strong> Enter values 1-9 where 1 = equal importance, 9 = extreme importance</p>
-                        <p>Reciprocal values (1/x) will be calculated automatically</p>
-                    </div>
-                `;
-                
-                container.appendChild(tableSection);
-            }
-            
-            updateAllAlternativeReciprocalValues(criteriaCount, itemsCount);
-        }
+        // NOTE (legacy consolidation): the original setupAlternativePairwiseTables()
+        // implementation was removed from here. It had already been silently
+        // overwritten at runtime by `window.setupAlternativePairwiseTables = createAlternativeTables;`
+        // (see the old "merge enhanced features" patch block), making it dead code.
+        // createAlternativeTables() below has been renamed to setupAlternativePairwiseTables()
+        // and is now the single canonical implementation. See docs/research-decisions/
+        // legacy-visibility-mechanism-removal.md for the full rationale.
         
         // جعل الدوال متاحة عالمياً للاستخدام في HTML
         window.validateAlternativeInput = function(input) {
@@ -3137,7 +3028,7 @@ console.log('✅ All enhanced features integrated successfully');
 // ============================================
 
 // دالة موحدة لإنشاء جداول البدائل
-function createAlternativeTables() {
+function setupAlternativePairwiseTables() {
     console.log('📊 Creating alternative comparison tables...');
     
     const container = document.getElementById('alternative-comparisons-container');
@@ -3593,99 +3484,16 @@ window.setAllEqualForCriterion = function(criterionId, itemsCount) {
 // AUTO-GENERATION ON INPUT CHANGE
 // ============================================
 
-// استبدال دالة setupAlternativePairwiseTables القديمة
-window.setupAlternativePairwiseTables = createAlternativeTables;
-
-// تحديث الجداول عند أي تغيير
-document.addEventListener('input', function(e) {
-    if (e.target && 
-        (e.target.id.startsWith('criteria') || e.target.id.startsWith('item')) &&
-        !e.target.id.includes('v')) {
-        
-        setTimeout(() => {
-            console.log('🔄 Updating tables due to input change');
-            createAlternativeTables();
-        }, 500);
-    }
-});
-
-// ============================================
-// INITIAL GENERATION
-// ============================================
-
-// توليد الجداول عند تحميل الصفحة
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        createAlternativeTables();
-    }, 1000);
-});
-
-// زر لتوليد الجداول يدوياً
-function generateTablesNow() {
-    console.log('🔧 Manually generating tables...');
-    createAlternativeTables();
-    
-    // إشعار
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
-        z-index: 9999;
-        animation: slideInUp 0.3s ease;
-    `;
-    notification.innerHTML = '✅ Comparison tables generated successfully!';
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOutDown 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// إضافة زر توليد يدوي في واجهة المستخدم
-setTimeout(() => {
-    const button = document.createElement('button');
-    button.id = 'manual-generate-btn';
-    button.innerHTML = '🔄 Generate Tables';
-    button.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        // padding: 12px 20px;
-        padding: 9px 15px; /* تم تصغير الحشوة */
-        background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
-        color: white;
-        border: none;
-        // border-radius: 8px;
-        border-radius: 7px; /* تصغير بسيط للحواف */
-        cursor: pointer;
-        // font-weight: bold;
-        font-size: 12px; /* تصغير الخط */
-        // box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-        box-shadow: 0 3px 10px rgba(52, 152, 219, 0.27); /* تصغير الظل */
-        z-index: 9998;
-        transition: all 0.3s ease;
-    `;
-    button.onmouseover = function() {
-        this.style.transform = 'translateY(-1px)';
-        // this.style.boxShadow = '0 6px 20px rgba(52, 152, 219, 0.4)';
-        this.style.boxShadow = '0 4px 15px rgba(52, 152, 219, 0.35)';
-    };
-    button.onmouseout = function() {
-        this.style.transform = 'translateY(0)';
-        // this.style.boxShadow = '0 4px 15px rgba(52, 152, 219, 0.3)';
-        this.style.boxShadow = '0 3px 10px rgba(52, 152, 219, 0.27)';
-    };
-    button.onclick = generateTablesNow;
-    
-    document.body.appendChild(button);
-}, 2000);
+// NOTE (legacy consolidation): this block used to (1) silently overwrite
+// window.setupAlternativePairwiseTables with a second, duplicate table-
+// building implementation (createAlternativeTables), (2) attach a second,
+// redundant 'input' listener duplicating the one already attached during
+// setupEventListeners(), (3) run a duplicate initial-generation timer, and
+// (4) inject a manual "Generate Tables" button as a workaround for tables
+// not appearing automatically. All of this was a workaround for the CSS
+// visibility bug (see docs/research-decisions/legacy-visibility-mechanism-removal.md),
+// not a real feature. Removed entirely now that the root cause is fixed and
+// there is a single canonical setupAlternativePairwiseTables() implementation.
 
 // ============================================
 // STYLES FOR ALTERNATIVE TABLES
