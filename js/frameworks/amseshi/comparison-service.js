@@ -165,3 +165,4 @@ export function compareAHPAndFAHP({ items, criteria, alternativeMatrices, criter
     },
   };
 }
+
