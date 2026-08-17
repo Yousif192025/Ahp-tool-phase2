@@ -1641,6 +1641,35 @@
             `;
         }
 
+        async function getAssessmentRunner() {
+            if (typeof window.runAssessment === 'function') {
+                return window.runAssessment;
+            }
+
+            // Module scripts are deferred. If a user reaches calculation before
+            // the global bridge has completed, resolve the same service directly
+            // instead of failing with "window.runAssessment is not a function".
+            const assessmentModule = await import('./js/application/assessment-service.js');
+            if (typeof assessmentModule.runAssessment !== 'function') {
+                throw new Error('Assessment service is unavailable. Reload the application and try again.');
+            }
+            window.runAssessment = assessmentModule.runAssessment;
+            return assessmentModule.runAssessment;
+        }
+
+        async function getComparisonRunner() {
+            if (typeof window.compareAHPAndFAHP === 'function') {
+                return window.compareAHPAndFAHP;
+            }
+
+            const comparisonModule = await import('./js/frameworks/amseshi/comparison-service.js');
+            if (typeof comparisonModule.compareAHPAndFAHP !== 'function') {
+                throw new Error('AHP–FAHP comparison service is unavailable. Reload the application and try again.');
+            }
+            window.compareAHPAndFAHP = comparisonModule.compareAHPAndFAHP;
+            return comparisonModule.compareAHPAndFAHP;
+        }
+
         async function runFAHPCalculation() {
             try {
                 const validation = validateForm();
@@ -1650,7 +1679,8 @@
                 const criteriaMatrix = createCriteriaMatrix(validation.data.criteria.length);
                 const alternativeMatrices = createAlternativeMatrices(validation.data.criteria.length, validation.data.items.length);
                 const goal = validation.data.goal;
-                const assessment = window.runAssessment({
+                const runAssessment = await getAssessmentRunner();
+                const assessment = runAssessment({
                     institution: { name: goal },
                     hierarchy: { goal, criteria: validation.data.criteria, alternatives: validation.data.items },
                     projectName: goal,
@@ -1684,7 +1714,8 @@
                 // Preserve the existing AHP assessment object and UI path before
                 // executing the separate comparison service.
                 const ahpResults = await performCalculation(validation.data);
-                const comparison = window.compareAHPAndFAHP({
+                const compareAHPAndFAHP = await getComparisonRunner();
+                const comparison = compareAHPAndFAHP({
                     items: validation.data.items,
                     criteria: validation.data.criteria,
                     criteriaMatrix,
@@ -1920,7 +1951,8 @@
                 const goalInput = document.getElementById('goal');
                 const goal = (goalInput && goalInput.value) ? goalInput.value : 'AMSESHI Assessment';
 
-                const assessment = window.runAssessment({
+                const runAssessment = await getAssessmentRunner();
+                const assessment = runAssessment({
                     institution: { name: goal }, // TODO: replace with a real Institution Information step
                     hierarchy: { goal, criteria: data.criteria, alternatives: data.items },
                     projectName: goal,
