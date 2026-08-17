@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -39,6 +40,7 @@
         import { calculateEnhancedAHP } from './js/frameworks/amseshi/amseshi-framework.js';
         import { rateConsistencyConfidence, explainConsistency } from './js/frameworks/amseshi/interpretation.js';
         import { runAssessment } from './js/application/assessment-service.js';
+        import { compareAHPAndFAHP } from './js/frameworks/amseshi/comparison-service.js';
         window.calculatePriorityVector = calculatePriorityVector;
         window.calculateConsistencyRatio = calculateConsistencyRatio;
         window.calculateOverallConsistency = calculateOverallConsistency;
@@ -46,6 +48,7 @@
         window.rateConsistencyConfidence = rateConsistencyConfidence;
         window.explainConsistency = explainConsistency;
         window.runAssessment = runAssessment;
+        window.compareAHPAndFAHP = compareAHPAndFAHP;
     </script>
     
     <style>
@@ -515,8 +518,17 @@
                     ⚖️ Set All Equal
                 </button>
                 <button id="enhanced-calculate" style="width: 100%; padding: 10px; background: #667eea; color: white; font-weight: bold;">
-                    🚀 Calculate Results
+                    🚀 Calculate AHP Results
                 </button>
+                <button id="fahp-calculate" style="width: 100%; padding: 10px; margin-top: 5px; background: #1f9d7a; color: white; font-weight: bold;">
+                    ◈ Calculate FAHP Results
+                </button>
+                <button id="compare-ahp-fahp" style="width: 100%; padding: 10px; margin-top: 5px; background: #6f42c1; color: white; font-weight: bold;">
+                    ⇄ Compare AHP and FAHP
+                </button>
+                <p style="margin: 8px 0 0; color: #555; font-size: 11px; line-height: 1.4;">
+                    FAHP uses the same hierarchy and pairwise judgments as AHP, converted to triangular fuzzy numbers. TOPSIS remains planned.
+                </p>
                 <div style="margin-top: 10px; font-size: 12px; color: #666;">
                     <div id="enhanced-status">Enhanced system ready</div>
                 </div>
@@ -673,7 +685,26 @@
                 </div>
             </div>
             
-            <!-- Consistency Analysis -->
+                            <!-- FAHP Results -->
+                <div class="chart-container" id="fahp-results-container" style="display: none;">
+                    <h3>◈ FAHP Results</h3>
+                    <p style="margin-top: 0; color: #555; font-size: 13px;">TFN fuzzy geometric-mean priorities, centroid defuzzification, and normalized final scores.</p>
+                    <div id="fahp-results-content"></div>
+                    <details style="margin-top: 16px;">
+                        <summary style="cursor: pointer; font-weight: bold;">View FAHP mathematical intermediate results</summary>
+                        <div id="fahp-intermediate-content" style="margin-top: 12px;"></div>
+                    </details>
+                </div>
+
+                <!-- AHP–FAHP Comparison -->
+                <div class="chart-container" id="ahp-fahp-comparison-container" style="display: none;">
+                    <h3>⇄ AHP vs FAHP Comparison</h3>
+                    <p style="margin-top: 0; color: #555; font-size: 13px;">Both methods use the same goal, criteria, alternatives, and pairwise assessment structure.</p>
+                    <div id="ahp-fahp-comparison-content"></div>
+                </div>
+
+                <!-- Consistency Analysis -->
+
             <div class="chart-container" id="consistency-container" style="display: none;">
                 <h3>📊 Consistency Analysis</h3>
                 <div id="consistency-content"></div>
@@ -1089,6 +1120,9 @@
             if (calcBtn2) {
                 calcBtn2.addEventListener('click', runEnhancedCalculation);
             }
+
+            document.getElementById('fahp-calculate')?.addEventListener('click', runFAHPCalculation);
+            document.getElementById('compare-ahp-fahp')?.addEventListener('click', runAHPFAHPComparison);
             
             const resetBtn = document.getElementById('datamgmt_reset');
             if (resetBtn) {
@@ -1472,7 +1506,7 @@
             document.getElementById('recommendations-content').innerHTML = '';
             document.getElementById('sensitivity-content').innerHTML = '<p>Analyzing how changes in criteria weights affect final rankings...</p>';
             
-            const containers = ['consistency-container', 'recommendations-container', 'sensitivity-container'];
+            const containers = ['consistency-container', 'recommendations-container', 'sensitivity-container', 'fahp-results-container', 'ahp-fahp-comparison-container'];
             containers.forEach(id => {
                 const container = document.getElementById(id);
                 if (container) {
@@ -1480,7 +1514,198 @@
                 }
             });
             
+            document.getElementById('fahp-results-content').innerHTML = '';
+            document.getElementById('fahp-intermediate-content').innerHTML = '';
+            document.getElementById('ahp-fahp-comparison-content').innerHTML = '';
             window.lastAssessment = null;
+            window.lastFAHPAssessment = null;
+            window.lastAHPFAHPComparison = null;
+        }
+
+        function escapeHTML(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatTFN(tfn) {
+            return `(${tfn.lower.toFixed(4)}, ${tfn.modal.toFixed(4)}, ${tfn.upper.toFixed(4)})`;
+        }
+
+        function renderDataTable(headers, rows) {
+            return `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead><tr>${headers.map(header => `<th style="text-align: left; padding: 8px; border-bottom: 2px solid #ddd; white-space: nowrap;">${header}</th>`).join('')}</tr></thead>
+                        <tbody>${rows.map(row => `<tr>${row.map(cell => `<td style="padding: 8px; border-bottom: 1px solid #eee; vertical-align: top;">${cell}</td>`).join('')}</tr>`).join('')}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        function displayFAHPResults(results) {
+            const container = document.getElementById('fahp-results-container');
+            const content = document.getElementById('fahp-results-content');
+            const intermediate = document.getElementById('fahp-intermediate-content');
+            if (!container || !content || !intermediate) return;
+
+            container.style.display = 'block';
+            const criterionRows = results.criteria.labels.map((label, index) => [
+                escapeHTML(label),
+                results.criteria.weights[index].toFixed(6),
+                formatTFN(results.criteria.fuzzyWeights[index]),
+                results.criteria.defuzzifiedWeights[index].toFixed(6),
+            ]);
+            const rankingRows = results.alternatives.ranking.map(entry => [
+                String(entry.rank),
+                escapeHTML(entry.label),
+                entry.score.toFixed(6),
+                `${(entry.score * 100).toFixed(2)}%`,
+            ]);
+            content.innerHTML = `
+                <div style="margin: 12px 0; padding: 12px; border-left: 4px solid #1f9d7a; background: #e8f7f1;">
+                    <strong>FAHP method:</strong> ${escapeHTML(results.metadata.calculationMethod)}<br>
+                    <strong>TFN scale:</strong> ${escapeHTML(results.metadata.tfnScale)}<br>
+                    <strong>Defuzzification:</strong> ${escapeHTML(results.metadata.defuzzificationMethod)}<br>
+                    <span style="font-size: 12px; color: #555;">${escapeHTML(results.consistency.explanation)}</span>
+                </div>
+                <h4>FAHP Global Criterion Weights</h4>
+                ${renderDataTable(['Criterion', 'Normalized Weight', 'Fuzzy Weight (l,m,u)', 'Defuzzified'], criterionRows)}
+                <h4 style="margin-top: 20px;">FAHP Final Alternative Ranking</h4>
+                ${renderDataTable(['Rank', 'Alternative', 'Score', 'Percentage'], rankingRows)}
+            `;
+
+            const criteriaIntermediateRows = results.criteria.labels.map((label, index) => [
+                escapeHTML(label),
+                formatTFN(results.intermediate.criteria.fuzzyGeometricMeans[index]),
+                formatTFN(results.criteria.fuzzyWeights[index]),
+                results.criteria.defuzzifiedWeights[index].toFixed(6),
+                results.criteria.weights[index].toFixed(6),
+            ]);
+            const localTables = results.alternatives.labels.map((_, alternativeIndex) => alternativeIndex);
+            const localPrioritySections = results.criteria.labels.map((criterion, criterionIndex) => {
+                const rows = results.alternatives.labels.map((alternative, alternativeIndex) => [
+                    escapeHTML(alternative),
+                    formatTFN(results.alternatives.fuzzyPrioritiesByCriterion[criterionIndex][alternativeIndex]),
+                    results.alternatives.defuzzifiedPrioritiesByCriterion[criterionIndex][alternativeIndex].toFixed(6),
+                    results.alternatives.prioritiesByCriterion[criterionIndex][alternativeIndex].toFixed(6),
+                ]);
+                return `<h5 style="margin: 18px 0 8px;">${escapeHTML(criterion)} — local alternative priorities</h5>${renderDataTable(['Alternative', 'Fuzzy Priority (l,m,u)', 'Defuzzified', 'Normalized'], rows)}`;
+            }).join('');
+            intermediate.innerHTML = `
+                <p style="font-size: 12px; color: #555;">The displayed TFNs were built from the same pairwise judgments used by AHP. Row fuzzy geometric means were normalized as fuzzy weights, defuzzified by centroid, then sum-normalized.</p>
+                <h4>Criteria Fuzzy Priority Trace</h4>
+                ${renderDataTable(['Criterion', 'Fuzzy Geometric Mean', 'Fuzzy Weight', 'Defuzzified', 'Normalized'], criteriaIntermediateRows)}
+                ${localPrioritySections}
+            `;
+        }
+
+        function displayAHPFAHPComparison(comparison) {
+            const container = document.getElementById('ahp-fahp-comparison-container');
+            const content = document.getElementById('ahp-fahp-comparison-content');
+            if (!container || !content) return;
+            container.style.display = 'block';
+
+            const criterionRows = comparison.criterionComparison.map(row => [
+                escapeHTML(row.criterion),
+                row.ahpWeight.toFixed(6),
+                row.fahpWeight.toFixed(6),
+                `${row.difference >= 0 ? '+' : ''}${row.difference.toFixed(6)}`,
+                row.percentageDifference === null ? 'N/A' : `${row.percentageDifference >= 0 ? '+' : ''}${row.percentageDifference.toFixed(2)}%`,
+                String(row.ahpRank),
+                String(row.fahpRank),
+                `${row.rankChange >= 0 ? '+' : ''}${row.rankChange}`,
+            ]);
+            const alternativeRows = comparison.alternativeComparison.map(row => [
+                escapeHTML(row.alternative),
+                row.ahpScore.toFixed(6),
+                row.fahpScore.toFixed(6),
+                `${row.difference >= 0 ? '+' : ''}${row.difference.toFixed(6)}`,
+                String(row.ahpRank),
+                String(row.fahpRank),
+                `${row.rankChange >= 0 ? '+' : ''}${row.rankChange}`,
+            ]);
+            const stability = comparison.rankings.stability;
+            content.innerHTML = `
+                <div style="margin: 12px 0; padding: 12px; border-left: 4px solid #6f42c1; background: #f2edfb;">
+                    <strong>Ranking stability: ${escapeHTML(stability.status)}</strong><br>
+                    <span style="font-size: 12px; color: #555;">${escapeHTML(stability.explanation)}</span><br>
+                    <span style="font-size: 12px; color: #555;">Mean FAHP criterion TFN spread before defuzzification: ${comparison.uncertaintySensitivity.meanCriterionTFNSpread.toFixed(6)}.</span>
+                </div>
+                <h4>Global CSF Weight Comparison</h4>
+                ${renderDataTable(['Criterion', 'AHP Weight', 'FAHP Weight', 'Difference', '% Difference', 'AHP Rank', 'FAHP Rank', 'Rank Change'], criterionRows)}
+                <h4 style="margin-top: 20px;">Final Alternative Ranking Comparison</h4>
+                ${renderDataTable(['Alternative', 'AHP Score', 'FAHP Score', 'Difference', 'AHP Rank', 'FAHP Rank', 'Rank Change'], alternativeRows)}
+            `;
+        }
+
+        async function runFAHPCalculation() {
+            try {
+                const validation = validateForm();
+                if (!validation.valid) throw new Error(validation.message);
+                updateEnhancedStatus('Calculating FAHP...');
+                updateResultsStatus('Constructing fuzzy matrices and calculating FAHP priorities...', 'loading');
+                const criteriaMatrix = createCriteriaMatrix(validation.data.criteria.length);
+                const alternativeMatrices = createAlternativeMatrices(validation.data.criteria.length, validation.data.items.length);
+                const goal = validation.data.goal;
+                const assessment = window.runAssessment({
+                    institution: { name: goal },
+                    hierarchy: { goal, criteria: validation.data.criteria, alternatives: validation.data.items },
+                    projectName: goal,
+                    criteriaMatrix,
+                    alternativeMatrices,
+                    methodId: 'fahp',
+                });
+                window.lastFAHPAssessment = assessment;
+                const resultsSection = document.getElementById('enhanced-results');
+                if (resultsSection) resultsSection.style.display = 'block';
+                displayFAHPResults(assessment.result);
+                updateEnhancedStatus('✓ FAHP calculation complete');
+                updateResultsStatus('✓ FAHP results displayed successfully!', 'success');
+            } catch (error) {
+                console.error('❌ FAHP calculation error:', error);
+                updateEnhancedStatus('FAHP calculation error');
+                updateResultsStatus('✗ FAHP error: ' + error.message, 'error');
+                showCalculationError(error.message);
+            }
+        }
+
+        async function runAHPFAHPComparison() {
+            try {
+                const validation = validateForm();
+                if (!validation.valid) throw new Error(validation.message);
+                updateEnhancedStatus('Calculating AHP and FAHP comparison...');
+                updateResultsStatus('Calculating both methods from the same assessment data...', 'loading');
+                const criteriaMatrix = createCriteriaMatrix(validation.data.criteria.length);
+                const alternativeMatrices = createAlternativeMatrices(validation.data.criteria.length, validation.data.items.length);
+
+                // Preserve the existing AHP assessment object and UI path before
+                // executing the separate comparison service.
+                const ahpResults = await performCalculation(validation.data);
+                const comparison = window.compareAHPAndFAHP({
+                    items: validation.data.items,
+                    criteria: validation.data.criteria,
+                    criteriaMatrix,
+                    alternativeMatrices,
+                });
+                comparison.input.goal = validation.data.goal;
+                window.lastAHPFAHPComparison = comparison;
+                window.lastFAHPAssessment = { result: comparison.results.fahp };
+                const resultsSection = document.getElementById('enhanced-results');
+                if (resultsSection) resultsSection.style.display = 'block';
+                displayEnhancedResults(ahpResults);
+                displayFAHPResults(comparison.results.fahp);
+                displayAHPFAHPComparison(comparison);
+                updateEnhancedStatus('✓ AHP–FAHP comparison complete');
+                updateResultsStatus('✓ AHP and FAHP comparison displayed successfully!', 'success');
+            } catch (error) {
+                console.error('❌ AHP–FAHP comparison error:', error);
+                updateEnhancedStatus('Comparison calculation error');
+                updateResultsStatus('✗ Comparison error: ' + error.message, 'error');
+                showCalculationError(error.message);
+            }
         }
         
         // ============================================
