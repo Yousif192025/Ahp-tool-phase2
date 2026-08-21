@@ -68,3 +68,4 @@ export function createFAHPMethod() {
 
   return assertMCDMMethod(method);
 }
+
