@@ -5,7 +5,7 @@
  *   for a single end-to-end assessment run.
  * Responsibilities:
  *   - Accept plain institution/hierarchy input and build the domain model
- *   - Call amseshi-framework.js (which calls the unchanged AHP engine)
+ *   - Call the MCDM method registry, which routes AHP to the unchanged AHP engine
  *   - Attach the interpretation layer's output (confidence; readiness
  *     pending future methodology)
  *   - Return one complete, immutable AssessmentRecord
@@ -13,7 +13,7 @@
  *     (those are future integration points — see "Not yet wired" below)
  * Dependencies:
  *   - js/frameworks/amseshi/assessment-model.js
- *   - js/frameworks/amseshi/amseshi-framework.js
+ *   - js/mcdm/method-registry.js
  *   - js/frameworks/amseshi/interpretation.js
  * Author: Yousif Hashim
  * Version: 1.0.0
@@ -30,13 +30,13 @@
  * -----------------------------------------------------------------------
  */
 import { InstitutionProfile, SuccessFactorHierarchy, AssessmentRecord } from '../frameworks/amseshi/assessment-model.js';
-import { calculateEnhancedAHP } from '../frameworks/amseshi/amseshi-framework.js';
+import { mcdmMethodRegistry, METHOD_IDS } from '../mcdm/method-registry.js';
 import { interpretAssessment } from '../frameworks/amseshi/interpretation.js';
 
 /**
  * Runs one complete AMSESHI assessment: builds the domain model, calls
- * the AMSESHI framework (decision analysis via the unmodified AHP
- * engine), attaches the interpretation layer's output, and returns the
+ * the Phase B method registry (which routes to the unmodified AHP engine),
+ * attaches the interpretation layer's output, and returns the
  * finished record. This is the single entry point a future UI wizard
  * should call — it never needs to import the framework or engine directly.
  *
@@ -46,9 +46,10 @@ import { interpretAssessment } from '../frameworks/amseshi/interpretation.js';
  * @param {string} params.projectName
  * @param {number[][]} params.criteriaMatrix
  * @param {number[][][]} params.alternativeMatrices - one matrix per criterion
+ * @param {string} [params.methodId='ahp'] - Registered method identifier.
  * @returns {import('../frameworks/amseshi/assessment-model.js').AssessmentRecord}
  */
-export function runAssessment({ institution, hierarchy, projectName, criteriaMatrix, alternativeMatrices }) {
+export function runAssessment({ institution, hierarchy, projectName, criteriaMatrix, alternativeMatrices, methodId = METHOD_IDS.AHP }) {
   const institutionProfile = institution instanceof InstitutionProfile
     ? institution
     : new InstitutionProfile(institution);
@@ -63,21 +64,51 @@ export function runAssessment({ institution, hierarchy, projectName, criteriaMat
     projectName,
   });
 
-  // Decision analysis: delegates entirely to the AMSESHI framework, which
-  // in turn delegates entirely to the unmodified AHP engine. This service
-  // never touches a matrix or a weight itself.
-  const result = calculateEnhancedAHP(
-    hierarchyModel.alternatives,
-    hierarchyModel.criteria,
-    alternativeMatrices,
-    criteriaMatrix
-  );
-  assessment = assessment.withResult(result);
+  // Keep the established AHP result and interpretation paths exactly separate
+  // from FAHP. In particular, the FAHP result is attached unchanged, so the
+  // renderer receives fuzzyWeights, defuzzifiedWeights, fuzzy priorities,
+  // scores, and ranking exactly as produced by the FAHP engine.
+  if (methodId === METHOD_IDS.AHP) {
+    const result = mcdmMethodRegistry.calculate(METHOD_IDS.AHP, {
+      items: hierarchyModel.alternatives,
+      criteria: hierarchyModel.criteria,
+      alternativeMatrices,
+      criteriaMatrix,
+    });
+    assessment = assessment.withResult(result);
+    assessment = assessment.withInterpretation(
+      interpretAssessment({ overallCR: result.consistency.overallCR })
+    );
+    return assessment;
+  }
 
-  // Interpretation layer: confidence only today; readiness intentionally
-  // pending (see docs/research-decisions/interpretation-layer-separation.md).
-  const interpretation = interpretAssessment({ overallCR: result.consistency.overallCR });
-  assessment = assessment.withInterpretation(interpretation);
+  if (methodId === METHOD_IDS.FAHP) {
+    const result = mcdmMethodRegistry.calculate(METHOD_IDS.FAHP, {
+      items: hierarchyModel.alternatives,
+      criteria: hierarchyModel.criteria,
+      alternativeMatrices,
+      criteriaMatrix,
+    });
+    assessment = assessment.withResult(result);
+    assessment = assessment.withInterpretation({
+      confidence: {
+        status: 'not-applicable',
+        consistencyRatio: null,
+        explanation: 'FAHP consistency diagnostics are not implemented in this TFN geometric-mean method; consult the parallel AHP consistency result.',
+      },
+      readiness: {
+        status: 'pending-methodology',
+        label: null,
+        explanation: 'Institutional readiness classification awaits the AMSESHI Framework methodology.',
+      },
+      recommendation: {
+        status: 'pending-methodology',
+        action: null,
+        rationale: 'Recommendations depend on the pending institutional readiness methodology.',
+      },
+    });
+    return assessment;
+  }
 
-  return assessment;
+  throw new Error(`Unsupported assessment method '${methodId}'.`);
 }
