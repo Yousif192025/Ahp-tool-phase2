@@ -297,4 +297,3 @@ export function calculateFAHP(items, criteria, alternativeMatrices, criteriaMatr
     },
   };
 }
-
